@@ -167,11 +167,11 @@
 /* ————— typography ————— */
 
 @utility script-xl {
-  font-family: var(--font-script);
-  font-weight: 700;
-  font-size: clamp(3.25rem, 11vw, 6.5rem);
-  line-height: 0.92;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(4.5rem, 9.5vw, 9.5rem);
+  line-height: 0.8;
+  letter-spacing: 0.01em;
   color: var(--color-ink);
 }
 
