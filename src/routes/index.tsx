@@ -130,17 +130,51 @@ function Home() {
           </h1>
 
           <form className="space-y-4" onSubmit={onCheck}>
-            <div>
+            <div className="relative" ref={placeBox}>
               <label className="field-caption" htmlFor="place">
                 Where?
               </label>
               <input
                 id="place"
                 value={place}
-                onChange={(e) => setPlace(e.target.value)}
+                onChange={(e) => onPlaceChange(e.target.value)}
+                onFocus={() => setOpenList(suggestions.length > 0)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setOpenList(false);
+                  if (e.key === "Enter" && openList && suggestions[0]) {
+                    e.preventDefault();
+                    pickSuggestion(suggestions[0]);
+                  }
+                }}
+                autoComplete="off"
+                role="combobox"
+                aria-expanded={openList}
+                aria-autocomplete="list"
                 placeholder="Maps link, address, neighbourhood or coordinates"
                 className="field-line mt-1 w-full"
               />
+              {openList && suggestions.length > 0 && (
+                <ul
+                  role="listbox"
+                  className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border bg-background shadow-sm"
+                >
+                  {suggestions.map((s) => (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected="false"
+                        onClick={() => pickSuggestion(s)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+                      >
+                        <MapPin className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        <span>{s.primary}</span>
+                        <span className="text-muted-foreground">{s.secondary}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div>
