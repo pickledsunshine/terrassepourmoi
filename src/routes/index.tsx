@@ -45,12 +45,10 @@ function Home() {
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
 
   async function onCheck(e: React.FormEvent) {
-    console.log("onCheck fired");
     e.preventDefault();
     setPending(true);
     try {
       const location = resolveLocation(place);
-      console.log("location", location);
       const res = await estimateTerrasse({
         location,
         date,
@@ -58,10 +56,9 @@ function Home() {
         to: parseHour(to),
         party,
       });
-      console.log("res", res);
       setResult({ ...res, area: location.label });
     } catch (err) {
-      console.error("estimateTerrasse error", err);
+      console.error(err);
     } finally {
       setPending(false);
     }
