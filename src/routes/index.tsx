@@ -224,6 +224,7 @@ function Home() {
         console.error("Google nearby search failed — falling back to mock venues", err);
         signals = { source: "mock-fallback" as const };
       }
+      // No provider gives live table availability; only suitability is modelled.
       // Inspection only: never rendered in the production UI.
       console.debug("[terrasse] venue signals", signals);
 
@@ -416,6 +417,15 @@ function Home() {
                 <p className="body-note">
                   Best window: {formatHour(result.bestWindow.from)}–{formatHour(result.bestWindow.to)}
                 </p>
+                <p className="body-note">
+                  {result.supply.openDuringWindow} nearby{" "}
+                  {result.supply.openDuringWindow === 1 ? "venue is" : "venues are"} open during this
+                  window · {result.supply.outdoorConfirmed} with confirmed outdoor seating
+                  {result.supply.outdoorUnknown > 0
+                    ? ` · ${result.supply.outdoorUnknown} unknown`
+                    : ""}
+                </p>
+                <p className="body-note">Terrace conditions, not table availability.</p>
               </>
             )}
           </div>
