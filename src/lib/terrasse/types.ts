@@ -15,14 +15,19 @@ export type ResolvedLocation = {
   source: "maps-link" | "coordinates" | "address" | "area";
 };
 
+/**
+ * Outdoor seating as reported by the data source.
+ * "unknown" is a first-class value: it is never silently promoted to "yes"
+ * nor demoted to "no".
+ */
+export type OutdoorSeating = "yes" | "no" | "unknown";
+
 export type Venue = {
   id: string;
   name: string;
-  /** Has an actual terrace / outdoor seating. */
-  terrace: boolean;
-  /** Approximate number of outdoor seats. */
-  terraceSeats: number;
-  /** How sheltered the terrace is from rain/wind, 0..1. */
+  /** Confirmed by the data source, denied, or simply not published. */
+  outdoor: OutdoorSeating;
+  /** How sheltered the terrace is from rain/wind, 0..1 (modelled, not data). */
   shelter: number;
   rating: number;
   reviewCount: number;
@@ -31,7 +36,13 @@ export type Venue = {
   closesAt: number;
   /** Whether groups above 4 are usually accommodated. */
   acceptsGroups: boolean;
+  /**
+   * Mock-dataset only, and NEVER used by the probability model.
+   * No real source publishes terrace capacity.
+   */
+  estimatedTerraceSeats?: number | null;
 };
+
 
 export type HourlyWeather = {
   hour: number;
