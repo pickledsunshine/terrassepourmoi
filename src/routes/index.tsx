@@ -115,27 +115,29 @@ function Home() {
                   </PopoverContent>
                 </Popover>
 
-                <label className="pebble flex shrink-0 items-center gap-2 px-3 py-2 text-sm">
-                  <input
-                    type="time"
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                    aria-label="Start time"
-                    className="bg-transparent text-sm outline-none [&::-webkit-calendar-picker-indicator]:hidden"
-                  />
-                  <Clock className="h-4 w-4 opacity-70" />
-                </label>
-                <span className="text-muted-foreground">—</span>
-                <label className="pebble flex shrink-0 items-center gap-2 px-3 py-2 text-sm">
-                  <input
-                    type="time"
-                    value={to}
-                    onChange={(e) => setTo(e.target.value)}
-                    aria-label="End time"
-                    className="bg-transparent text-sm outline-none [&::-webkit-calendar-picker-indicator]:hidden"
-                  />
-                  <Clock className="h-4 w-4 opacity-70" />
-                </label>
+                <div className="flex shrink-0 items-center gap-3">
+                  <label className="pebble flex items-center gap-2 px-3 py-2 text-sm">
+                    <input
+                      type="time"
+                      value={from}
+                      onChange={(e) => setFrom(e.target.value)}
+                      aria-label="Start time"
+                      className="bg-transparent text-sm outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                    <Clock className="h-4 w-4 opacity-70" />
+                  </label>
+                  <span className="text-muted-foreground">—</span>
+                  <label className="pebble flex items-center gap-2 px-3 py-2 text-sm">
+                    <input
+                      type="time"
+                      value={to}
+                      onChange={(e) => setTo(e.target.value)}
+                      aria-label="End time"
+                      className="bg-transparent text-sm outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                    <Clock className="h-4 w-4 opacity-70" />
+                  </label>
+                </div>
               </div>
             </div>
 
