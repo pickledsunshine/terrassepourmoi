@@ -74,6 +74,8 @@ function Home() {
   const [result, setResult] = useState<(TerrasseResult & { area: string }) | null>(null);
   const [pending, setPending] = useState(false);
   const placeBox = useRef<HTMLDivElement>(null);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lookupSeq = useRef(0);
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
 
@@ -140,7 +142,7 @@ function Home() {
     setPending(true);
     setOpenList(false);
     try {
-      const loc = selected ?? (await resolveInput(place));
+      const loc = selected ?? (await resolveTyped(place));
       if (!loc) {
         setResult(null);
         return;
