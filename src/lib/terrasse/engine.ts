@@ -124,7 +124,8 @@ export async function estimateTerrasse(
 
     // DEMAND — time of day × day of week × weather appetite × party friction.
     const demand = demandCurve(t) * dayMult * (0.55 + 0.7 * attractiveness);
-    const occupancy = Math.max(0.03, Math.min(1, demand));
+    // Saturating map from demand pressure to occupied share of the terrace.
+    const occupancy = Math.min(0.97, 1 - Math.exp(-demand * 1.15));
 
     // Free seats per venue, then the chance of at least one table for the party.
     let expectedTables = 0;
