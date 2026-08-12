@@ -418,14 +418,13 @@ function Home() {
                   Best window: {formatHour(result.bestWindow.from)}–{formatHour(result.bestWindow.to)}
                 </p>
                 <p className="body-note">
-                  {result.supply.openDuringWindow} nearby{" "}
-                  {result.supply.openDuringWindow === 1 ? "venue is" : "venues are"} open during this
-                  window · {result.supply.outdoorConfirmed} with confirmed outdoor seating
+                  {result.supply.openDuringWindow} open nearby ·{" "}
+                  {result.supply.outdoorConfirmed} confirmed terraces
                   {result.supply.outdoorUnknown > 0
                     ? ` · ${result.supply.outdoorUnknown} unknown`
-                    : ""}
+                    : ""}{" "}
+                  · conditions, not tables
                 </p>
-                <p className="body-note">Terrace conditions, not table availability.</p>
               </>
             )}
           </div>
