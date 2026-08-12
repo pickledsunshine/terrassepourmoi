@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import cafeDuo from "@/assets/cafe-duo-transparent.png.asset.json";
+import cafeDuo from "@/assets/cafe-duo-ref.png.asset.json";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -170,8 +170,8 @@ function Home() {
           <img
             src={cafeDuo.url}
             alt="Hand-drawn indigo ink sketch of two people at a small café table with wine glasses"
-            width={1024}
-            height={1024}
+            width={736}
+            height={790}
             className="mx-auto w-full max-w-[34rem]"
           />
         </section>
