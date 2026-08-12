@@ -24,8 +24,8 @@ function toVenue(v: MockVenue, weekday: number): Venue {
   return {
     id: v.id,
     name: v.name,
-    terrace: v.outdoorSeating,
-    terraceSeats: v.estimatedTerraceCapacity,
+    outdoor: v.outdoorSeating ? "yes" : "no",
+    estimatedTerraceSeats: v.estimatedTerraceCapacity,
     // pricier, busier places tend to invest in awnings and heaters
     shelter: Math.min(0.9, 0.2 + v.priceLevel * 0.13 + v.popularity * 0.2),
     rating: Math.round((3.5 + v.popularity * 1.4) * 10) / 10,
@@ -35,6 +35,7 @@ function toVenue(v: MockVenue, weekday: number): Venue {
     acceptsGroups: v.estimatedTerraceCapacity >= 24,
   };
 }
+
 
 /**
  * Mock stand-in for the Google Places API.
