@@ -71,14 +71,14 @@ function hourProbability(area: Area, q: Query, hour: number) {
 }
 
 export function predict(q: Query): Prediction {
-  const area = AREAS.find((a) => a.id === q.areaId) ?? AREAS[0];
+  const area = AREAS.find((a) => a.id === q.areaId) ?? AREAS[0]!;
   const start = Math.min(q.startHour, q.endHour);
   const end = Math.max(q.startHour, q.endHour);
   const hours: number[] = [];
   for (let h = start; h <= end; h++) hours.push(h);
 
   const hourly = hours.map((hour) => ({ hour, probability: hourProbability(area, q, hour).p }));
-  const best = hourly.reduce((a, b) => (b.probability > a.probability ? b : a));
+  const best = hourly.reduce((a, b) => (b.probability > a.probability ? b : a), hourly[0]!);
 
   // Probability of succeeding at least once, with correlation between hours.
   const failAll = hourly.reduce((acc, h) => acc * (1 - h.probability), 1);
@@ -86,7 +86,7 @@ export function predict(q: Query): Prediction {
   const rho = 0.72; // conditions persist across the window
   const probability = clamp01(best.probability * rho + independent * (1 - rho));
 
-  const mid = hourly[Math.floor(hourly.length / 2)].hour;
+  const mid = hourly[Math.floor(hourly.length / 2)]!.hour;
   const detail = hourProbability(area, q, mid);
   const w = detail.w;
 
