@@ -178,7 +178,7 @@ function Home() {
             </div>
           </form>
 
-          <div className="mt-6 min-h-[8rem] border-t border-border pt-5">
+          <div className="mt-4 min-h-[4rem] border-t border-border pt-4">
             {result && (
               <>
                 <p className="odds-figure text-6xl leading-none">{result.probability}%</p>
@@ -186,14 +186,10 @@ function Home() {
                 <p className="body-note mt-2">
                   {result.area} · {party} {party === 1 ? "person" : "people"} · {from}–{to}
                 </p>
+                <p className="body-note">{result.weatherLine} · {dayLabel}</p>
                 <p className="body-note">
-                  {result.weatherLine} · {dayLabel}
+                  Best window: {formatHour(result.bestWindow.from)}–{formatHour(result.bestWindow.to)}
                 </p>
-                <p className="body-note">
-                  Best window: {formatHour(result.bestWindow.from)}–{formatHour(result.bestWindow.to)} ·{" "}
-                  {result.venuesOpen} of {result.venuesConsidered} terraces open
-                </p>
-                <p className="body-note mt-1 italic">{result.explanation}</p>
               </>
             )}
           </div>
