@@ -70,16 +70,16 @@ export function Awning({ className }: Props) {
 export function OliveBranch({ className }: Props) {
   return (
     <svg viewBox="0 0 160 60" className={className} aria-hidden="true">
-      <path className="ink-stroke" d="M6 40c34 10 82 4 148-18" />
+      <path className="ink-stroke" d="M8 46C48 54 104 44 152 16" />
       <g className="ink-stroke">
-        <ellipse cx="36" cy="30" rx="9" ry="4.5" transform="rotate(-34 36 30)" />
-        <path d="M40 34l-4 4" />
-        <ellipse cx="66" cy="24" rx="9" ry="4.5" transform="rotate(-28 66 24)" />
-        <path d="M70 28l-4 4" />
-        <ellipse cx="98" cy="17" rx="9" ry="4.5" transform="rotate(-24 98 17)" />
-        <path d="M102 21l-4 4" />
-        <ellipse cx="126" cy="9" rx="8" ry="4" transform="rotate(-20 126 9)" />
-        <path d="M129 13l-3 4" />
+        <ellipse cx="38" cy="40" rx="8.5" ry="4" transform="rotate(-22 38 40)" />
+        <path d="M42 43l-2 5" />
+        <ellipse cx="70" cy="37" rx="8.5" ry="4" transform="rotate(-18 70 37)" />
+        <path d="M74 40l-2 5" />
+        <ellipse cx="102" cy="30" rx="8.5" ry="4" transform="rotate(-26 102 30)" />
+        <path d="M105 33l-2 5" />
+        <ellipse cx="130" cy="19" rx="7.5" ry="3.5" transform="rotate(-30 130 19)" />
+        <path d="M132 22l-2 4" />
       </g>
     </svg>
   );
