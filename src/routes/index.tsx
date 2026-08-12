@@ -26,6 +26,8 @@ import {
 import { fetchForecast } from "@/lib/terrasse/weather.functions";
 import { staticWeatherProvider, toForecast } from "@/lib/terrasse/weather.openmeteo";
 import { mockPlaces } from "@/lib/terrasse/places.mock";
+import { googlePlacesProvider, summarise as summariseVenues } from "@/lib/terrasse/places.google";
+import { nearbyVenues } from "@/lib/terrasse/venues.functions";
 import type { ResolvedLocation, TerrasseResult, WeatherForecast } from "@/lib/terrasse/types";
 
 /** Local calendar day (not UTC) for the Open-Meteo request. */
@@ -207,15 +209,33 @@ function Home() {
         }
       }
 
+      // Real nearby venues from Google Places; mock only as an explicit fallback.
+      const fromH = parseHour(from);
+      const toH = parseHour(to);
+      let places = mockPlaces;
+      let signals;
+      try {
+        const found = await nearbyVenues({
+          data: { latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM ?? 500 },
+        });
+        places = googlePlacesProvider(found);
+        signals = summariseVenues(found, date.getDay(), fromH, toH, "google");
+      } catch (err) {
+        console.error("Google nearby search failed — falling back to mock venues", err);
+        signals = { source: "mock-fallback" as const };
+      }
+      // Inspection only: never rendered in the production UI.
+      console.debug("[terrasse] venue signals", signals);
+
       const res = await estimateTerrasse(
         {
           location: toResolved(loc),
           date,
-          from: parseHour(from),
-          to: parseHour(to),
+          from: fromH,
+          to: toH,
           party,
         },
-        { places: mockPlaces, weather: staticWeatherProvider(live) },
+        { places, weather: staticWeatherProvider(live) },
       );
       setResult({ ...res, area: loc.displayName });
     } catch (err) {
