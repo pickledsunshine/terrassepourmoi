@@ -78,14 +78,40 @@ export type Factor = {
   impact: number;
 };
 
+/** Where the venue list came from. Mock is a fallback, never real data. */
+export type VenueSource = "google" | "mock-fallback";
+
+/** Factual, countable supply signals — no invented capacity or inventory. */
+export type VenueSupply = {
+  /** Venues returned by the source near the location. */
+  considered: number;
+  /** Of those, open during the selected window (unknown hours count as open). */
+  openDuringWindow: number;
+  /** Open AND the source explicitly confirms outdoor seating. */
+  outdoorConfirmed: number;
+  /** Open, but the source publishes nothing about outdoor seating. */
+  outdoorUnknown: number;
+  /** Open, and the source explicitly says there is no outdoor seating. */
+  outdoorNone: number;
+  source: VenueSource;
+};
+
 export type TerrasseResult = {
-  probability: number; // 0..100
+  /**
+   * TERRACE SUITABILITY, 0..100 — how favourable conditions are for finding
+   * and enjoying an open terrace nearby during this window.
+   * This is NOT a probability of getting a table.
+   */
+  probability: number;
   verdict: string;
   /** Best 30-minute slot inside the window. */
   bestWindow: { from: number; to: number };
   weatherLine: string;
   venuesConsidered: number;
   venuesOpen: number;
+  supply: VenueSupply;
+  /** No provider gives live table inventory today; always null for now. */
+  tableAvailability: null;
   factors: Factor[];
   explanation: string;
 };
@@ -93,11 +119,14 @@ export type TerrasseResult = {
 export interface PlacesProvider {
   /** `date` lets a provider honour weekday-specific opening hours. */
   findTerraceVenues(location: ResolvedLocation, date?: Date): Promise<Venue[]>;
+  /** Real data or fallback. Absent means mock fallback. */
+  readonly source?: VenueSource;
 }
 
 export interface WeatherProvider {
   getForecast(location: ResolvedLocation, date: Date): Promise<WeatherForecast>;
 }
+
 
 export type Observation = "yes" | "waited" | "no";
 
