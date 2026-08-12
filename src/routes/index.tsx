@@ -202,7 +202,7 @@ function Home() {
             alt="Hand-drawn indigo ink sketch of two people at a small café table with wine glasses"
             width={716}
             height={780}
-            className="h-auto w-full max-w-[22rem] max-h-[52vh] object-contain md:max-w-[24rem]"
+            className="h-auto w-full max-w-[20rem] max-h-[48vh] object-contain md:max-w-[24rem]"
           />
         </section>
       </div>
