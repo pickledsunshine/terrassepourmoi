@@ -68,13 +68,20 @@ export async function estimateTerrasse(
   const to = Math.max(query.to, from + 0.25);
 
   const [venues, forecast] = await Promise.all([
-    deps.places.findTerraceVenues(location),
+    deps.places.findTerraceVenues(location, date),
     deps.weather.getForecast(location, date),
   ]);
 
   const day = date.getDay();
   const weekend = day === 0 || day === 5 || day === 6;
-  const openVenues = venues.filter((v) => v.terrace && openDuring(v, from, to));
+  // Suitable = has a terrace, open during the window, and roomy enough for the party.
+  const openVenues = venues.filter(
+    (v) =>
+      v.terrace &&
+      openDuring(v, from, to) &&
+      v.terraceSeats >= party + 1 &&
+      (party <= 4 || v.acceptsGroups),
+  );
   const supply = supplyScore(venues, party, from, to);
   const avgShelter = openVenues.length
     ? openVenues.reduce((a, v) => a + v.shelter, 0) / openVenues.length

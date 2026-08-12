@@ -1,4 +1,5 @@
 import { hash01 } from "./location";
+import { matchArea, venuesInArea, type MockVenue } from "./venues.dataset";
 import type { PlacesProvider, ResolvedLocation, Venue } from "./types";
 
 const NAMES = [
@@ -16,12 +17,38 @@ const NAMES = [
   "Les Oliviers",
 ];
 
+/** Dataset venue → engine venue. Keeps the engine free of dataset details. */
+function toVenue(v: MockVenue, weekday: number): Venue {
+  const closedToday = v.openingHours.closedDays?.includes(weekday) ?? false;
+  const s = hash01(v.id);
+  return {
+    id: v.id,
+    name: v.name,
+    terrace: v.outdoorSeating,
+    terraceSeats: v.estimatedTerraceCapacity,
+    // pricier, busier places tend to invest in awnings and heaters
+    shelter: Math.min(0.9, 0.2 + v.priceLevel * 0.13 + v.popularity * 0.2),
+    rating: Math.round((3.5 + v.popularity * 1.4) * 10) / 10,
+    reviewCount: Math.round(80 + v.popularity * 2600 + s * 400),
+    opensAt: closedToday ? 99 : v.openingHours.open,
+    closesAt: closedToday ? 99 : v.openingHours.close,
+    acceptsGroups: v.estimatedTerraceCapacity >= 24,
+  };
+}
+
 /**
  * Mock stand-in for the Google Places API.
- * Same shape as the real provider: swap the implementation, keep the engine.
+ * Uses the structured Paris dataset when the area is known, and falls back to
+ * deterministic synthetic venues for anywhere else.
  */
 export const mockPlaces: PlacesProvider = {
-  async findTerraceVenues(location: ResolvedLocation): Promise<Venue[]> {
+  async findTerraceVenues(location: ResolvedLocation, date?: Date): Promise<Venue[]> {
+    const area = matchArea(location.label, location.lat, location.lng);
+    if (area) {
+      const weekday = (date ?? new Date()).getDay();
+      return venuesInArea(area).map((v) => toVenue(v, weekday));
+    }
+
     const seed = hash01(`${location.label}|${location.lat.toFixed(3)}`);
     const count = 6 + Math.round(seed * 8);
 
