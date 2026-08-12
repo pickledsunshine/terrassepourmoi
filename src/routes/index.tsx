@@ -88,17 +88,51 @@ function Home() {
   function onPlaceChange(value: string) {
     setPlace(value);
     setSelected(null);
-    const next = searchPlaces(value);
-    setSuggestions(next);
-    setOpenList(next.length > 0);
+    const query = value.trim();
+    if (debounce.current) clearTimeout(debounce.current);
+    if (query.length < 2 || parseCoordinates(query) || isMapsUrl(query)) {
+      setSuggestions([]);
+      setOpenList(false);
+      return;
+    }
+    const seq = ++lookupSeq.current;
+    debounce.current = setTimeout(async () => {
+      try {
+        const next = await autocompletePlaces({ data: { input: query } });
+        if (seq !== lookupSeq.current) return;
+        setSuggestions(next);
+        setOpenList(next.length > 0);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 220);
   }
 
-  function pickSuggestion(s: PlaceSuggestion) {
-    const loc = fromSuggestion(s);
-    setSelected(loc);
-    setPlace(loc.displayName);
+  async function pickSuggestion(s: GooglePlaceSuggestion) {
+    setPlace(`${s.primary}${s.secondary ? `, ${s.secondary}` : ""}`);
     setOpenList(false);
     setSuggestions([]);
+    try {
+      const point = await getPlaceDetails({ data: { placeId: s.id } });
+      if (point) {
+        const loc = toSelected(point);
+        setSelected(loc);
+        setPlace(loc.displayName);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function resolveTyped(raw: string): Promise<SelectedLocation | null> {
+    const input = raw.trim();
+    if (!input) return null;
+    const coords = parseCoordinates(input);
+    if (coords) return fromCoordinates(coords.latitude, coords.longitude);
+    const point = isMapsUrl(input)
+      ? await resolveMapsLink({ data: { url: input } })
+      : await searchPlaceText({ data: { query: input } });
+    return point ? toSelected(point) : null;
   }
 
   async function onCheck(e: React.FormEvent) {
