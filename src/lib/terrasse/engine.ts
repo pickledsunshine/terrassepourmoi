@@ -21,42 +21,74 @@ export type EngineDeps = { places: PlacesProvider; weather: WeatherProvider };
 
 const defaultDeps: EngineDeps = { places: mockPlaces, weather: mockWeather };
 
-/** Crowd pressure across the day: lunch, apéro and dinner peaks. */
-function demandAt(hour: number, weekend: boolean): number {
-  const peaks: Array<[number, number]> = [
-    [12.75, 0.72],
-    [18.75, 1],
-    [20.75, 0.88],
-  ];
-  const base = peaks.reduce(
-    (acc, [c, w]) => acc + w * Math.exp(-((hour - c) ** 2) / 3.0),
-    0.1,
+const K_TABLES = 0.036;
+
+/**
+ * Demand curve: share of terrace seats typically taken at this hour,
+ * before day-of-week and weather effects. Lunch, apéro and dinner peaks.
+ */
+function demandCurve(hour: number): number {
+  return (
+    0.16 +
+    0.5 * Math.exp(-((hour - 13) ** 2) / 1.2) +
+    0.3 * Math.exp(-((hour - 18.5) ** 2) / 1.6) +
+    0.72 * Math.exp(-((hour - 20.3) ** 2) / 2.2)
   );
-  return base * (weekend ? 1.18 : 1);
 }
 
-/** 0..1 comfort of sitting outside at this hour. */
-function comfortAt(temp: number, rainProb: number, rainMm: number, wind: number, shelter: number) {
-  const tempScore = Math.exp(-((temp - 22) ** 2) / 70);
-  const rainPenalty = (rainProb * 0.55 + Math.min(1, rainMm / 4) * 0.45) * (1 - shelter * 0.45);
-  const windPenalty = Math.max(0, (wind - 18) / 45) * (1 - shelter * 0.5);
-  return Math.max(0.03, Math.min(1, tempScore * (1 - rainPenalty) * (1 - windPenalty)));
+/** Friday and Saturday carry a real demand premium; Mondays are sleepy. */
+export function dayDemandMultiplier(day: number): number {
+  // 0 = Sunday
+  return [0.98, 0.82, 0.86, 0.9, 1.0, 1.26, 1.24][day] ?? 1;
+}
+
+/**
+ * WEATHER SUITABILITY — how attractive it is to sit outside (0..1).
+ * This drives DEMAND: nice weather means more people want a terrace.
+ */
+export function weatherSuitability(w: {
+  temperatureC: number;
+  precipitationProbability: number;
+  precipitationMm: number;
+  windKph: number;
+  cloudCover: number;
+}): number {
+  const temp = Math.exp(-((w.temperatureC - 23) ** 2) / 80);
+  const rain = 1 - Math.min(1, w.precipitationProbability * 0.85 + Math.min(1, w.precipitationMm / 4) * 0.4);
+  const wind = 1 - Math.min(0.8, Math.max(0, (w.windKph - 16) / 45));
+  const cloud = 1 - w.cloudCover * 0.22;
+  return Math.max(0, Math.min(1, temp * rain * wind * cloud));
+}
+
+/**
+ * USABILITY — whether a terrace seat is actually sittable, given shelter.
+ * Rain and cold reduce demand, but they also make the seats unpleasant, so
+ * they must reduce the final availability answer too.
+ */
+function usability(
+  w: { temperatureC: number; precipitationProbability: number; precipitationMm: number; windKph: number },
+  shelter: number,
+) {
+  const rain = (w.precipitationProbability * 0.7 + Math.min(1, w.precipitationMm / 4) * 0.3) * (1 - shelter * 0.4);
+  const cold = Math.max(0, (11 - w.temperatureC) / 22);
+  const heat = Math.max(0, (w.temperatureC - 33) / 14);
+  const wind = Math.max(0, (w.windKph - 22) / 50) * (1 - shelter * 0.5);
+  return Math.max(0.04, Math.min(1, (1 - rain) * (1 - cold) * (1 - heat) * (1 - wind)));
 }
 
 function openDuring(v: Venue, from: number, to: number) {
   return v.opensAt <= to - 0.25 && v.closesAt >= from + 0.25;
 }
 
-/** Effective supply of terrace seats suitable for this party. */
-function supplyScore(venues: Venue[], party: number, from: number, to: number) {
-  return venues
-    .filter((v) => v.terrace && openDuring(v, from, to))
-    .reduce((acc, v) => {
-      if (party > 4 && !v.acceptsGroups) return acc;
-      const capacity = Math.max(0, v.terraceSeats - party + 1) / 40;
-      const desirability = 0.6 + (v.rating - 3.5) * 0.25 + Math.min(0.25, v.reviewCount / 8000);
-      return acc + capacity * desirability;
-    }, 0);
+/** Venues that could physically seat this party outside during the window. */
+function suitable(venues: Venue[], party: number, from: number, to: number) {
+  return venues.filter(
+    (v) =>
+      v.terrace &&
+      openDuring(v, from, to) &&
+      v.terraceSeats >= party + 1 &&
+      (party <= 4 || v.acceptsGroups),
+  );
 }
 
 export async function estimateTerrasse(
@@ -73,40 +105,51 @@ export async function estimateTerrasse(
   ]);
 
   const day = date.getDay();
-  const weekend = day === 0 || day === 5 || day === 6;
-  // Suitable = has a terrace, open during the window, and roomy enough for the party.
-  const openVenues = venues.filter(
-    (v) =>
-      v.terrace &&
-      openDuring(v, from, to) &&
-      v.terraceSeats >= party + 1 &&
-      (party <= 4 || v.acceptsGroups),
-  );
-  const supply = supplyScore(venues, party, from, to);
+  const dayMult = dayDemandMultiplier(day);
+
+  // BASE SUPPLY — open, outdoor, big enough for this party.
+  const openVenues = suitable(venues, party, from, to);
   const avgShelter = openVenues.length
     ? openVenues.reduce((a, v) => a + v.shelter, 0) / openVenues.length
     : 0.3;
 
   // Sample the window every 15 minutes and keep the best slot.
-  let best = { p: 0, t: from, comfort: 0.5, demand: 1 };
+  let best = { p: 0, t: from, suitability: 0.5, demand: 1, occupancy: 0.5 };
+  let sum = 0;
+  let samples = 0;
   for (let t = from; t <= to; t += 0.25) {
     const w = weatherAt(forecast, t);
-    const comfort = comfortAt(w.temperatureC, w.precipitationProbability, w.precipitationMm, w.windKph, avgShelter);
-    const demand = demandAt(t, weekend);
-    // Crowd competes for a finite, weather-adjusted supply of seats.
-    const effectiveSupply = supply * (0.45 + comfort * 0.55);
-    const pressure = (demand * (0.9 + party * 0.16)) / Math.max(0.2, effectiveSupply);
-    const p = Math.exp(-pressure * 0.85) * (0.35 + comfort * 0.65);
-    if (p > best.p) best = { p, t, comfort, demand };
+    const attractiveness = weatherSuitability(w);
+    const sittable = usability(w, avgShelter);
+
+    // DEMAND — time of day × day of week × weather appetite × party friction.
+    const demand = demandCurve(t) * dayMult * (0.55 + 0.7 * attractiveness);
+    // Saturating map from demand pressure to occupied share of the terrace.
+    const occupancy = Math.min(0.97, 1 - Math.exp(-demand * 1.15));
+
+    // Free seats per venue, then the chance of at least one table for the party.
+    let expectedTables = 0;
+    for (const v of openVenues) {
+      const free = v.terraceSeats * (1 - occupancy);
+      // A group needs adjacent seats: harder than the raw seat count suggests.
+      const groupFriction = party <= 2 ? 1 : 1 / (1 + (party - 2) * 0.28);
+      expectedTables += (free / (party + 1)) * groupFriction * (0.75 + (v.rating - 4) * 0.15);
+    }
+
+    const p = (1 - Math.exp(-K_TABLES * Math.max(0, expectedTables))) * sittable;
+    sum += p;
+    samples += 1;
+    if (p > best.p) best = { p, t, suitability: attractiveness, demand, occupancy };
   }
 
-  // A longer window means more chances at the good slot.
-  const windowBonus = Math.min(0.14, (to - from) * 0.05);
-  const probability = Math.round(Math.max(3, Math.min(96, (best.p + windowBonus) * 100)));
+  // Most of the window matters, not only its quietest minute.
+  const mean = samples ? sum / samples : 0;
+  const blended = mean * 0.7 + best.p * 0.3;
+  const probability = Math.round(Math.max(2, Math.min(95, blended * 100)));
 
   const w = weatherAt(forecast, best.t);
   const factors: Factor[] = [
-    { label: `${openVenues.length} terraces open nearby`, impact: Math.min(1, supply / 4) - 0.35 },
+    { label: `${openVenues.length} terraces open nearby`, impact: Math.min(1, openVenues.length / 8) - 0.35 },
     {
       label:
         w.precipitationProbability > 0.5
@@ -116,9 +159,9 @@ export async function estimateTerrasse(
             : "dry skies",
       impact: 0.4 - w.precipitationProbability,
     },
-    { label: `${Math.round(w.temperatureC)}°C outside`, impact: (best.comfort - 0.5) * 0.8 },
+    { label: `${Math.round(w.temperatureC)}°C outside`, impact: (best.suitability - 0.5) * 0.8 },
     { label: `party of ${party}`, impact: party <= 2 ? 0.2 : -Math.min(0.6, (party - 2) * 0.12) },
-    { label: best.demand > 0.75 ? "peak hour" : "quieter hour", impact: 0.35 - best.demand * 0.5 },
+    { label: best.occupancy > 0.7 ? "peak hour" : "quieter hour", impact: 0.35 - best.occupancy * 0.5 },
   ];
 
   const worst = [...factors].sort((a, b) => a.impact - b.impact)[0]!;
