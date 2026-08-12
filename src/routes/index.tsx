@@ -140,7 +140,7 @@ function Home() {
                 <button
                   type="button"
                   aria-label="Fewer people"
-                  className="btn-outline-ink h-11 w-11 rounded-full p-0 text-lg leading-none"
+                  className="btn-outline-ink h-10 w-10 rounded-full p-0 text-lg leading-none"
                   onClick={() => setParty((n) => Math.max(1, n - 1))}
                 >
                   −
@@ -149,7 +149,7 @@ function Home() {
                 <button
                   type="button"
                   aria-label="More people"
-                  className="btn-outline-ink h-11 w-11 rounded-full p-0 text-lg leading-none"
+                  className="btn-outline-ink h-10 w-10 rounded-full p-0 text-lg leading-none"
                   onClick={() => setParty((n) => Math.min(12, n + 1))}
                 >
                   +
