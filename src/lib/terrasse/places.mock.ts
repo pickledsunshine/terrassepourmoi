@@ -24,8 +24,8 @@ function toVenue(v: MockVenue, weekday: number): Venue {
   return {
     id: v.id,
     name: v.name,
-    terrace: v.outdoorSeating,
-    terraceSeats: v.estimatedTerraceCapacity,
+    outdoor: v.outdoorSeating ? "yes" : "no",
+    estimatedTerraceSeats: v.estimatedTerraceCapacity,
     // pricier, busier places tend to invest in awnings and heaters
     shelter: Math.min(0.9, 0.2 + v.priceLevel * 0.13 + v.popularity * 0.2),
     rating: Math.round((3.5 + v.popularity * 1.4) * 10) / 10,
@@ -36,12 +36,14 @@ function toVenue(v: MockVenue, weekday: number): Venue {
   };
 }
 
+
 /**
  * Mock stand-in for the Google Places API.
  * Uses the structured Paris dataset when the area is known, and falls back to
  * deterministic synthetic venues for anywhere else.
  */
 export const mockPlaces: PlacesProvider = {
+  source: "mock-fallback",
   async findTerraceVenues(location: ResolvedLocation, date?: Date): Promise<Venue[]> {
     const area = matchArea(location.label, location.lat, location.lng);
     if (area) {
@@ -58,8 +60,8 @@ export const mockPlaces: PlacesProvider = {
       return {
         id: `${location.label}-${i}`,
         name: NAMES[(i + Math.round(seed * 11)) % NAMES.length]!,
-        terrace: r > 0.22,
-        terraceSeats: 8 + Math.round(r2 * 40),
+        outdoor: r > 0.22 ? "yes" : "no",
+        estimatedTerraceSeats: 8 + Math.round(r2 * 40),
         shelter: 0.15 + r2 * 0.7,
         rating: 3.6 + r * 1.3,
         reviewCount: 40 + Math.round(r2 * 2400),
@@ -70,3 +72,4 @@ export const mockPlaces: PlacesProvider = {
     });
   },
 };
+

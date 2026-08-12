@@ -9,9 +9,10 @@ import type { GooglePeriod, GoogleVenue, OutdoorSeatingFlag } from "./venues.fun
  * labelled MODELLING ASSUMPTION, never presented as Google data.
  */
 
-/** Assumption, not Google data: typical Paris terrace size when unknown. */
-export const ASSUMED_TERRACE_SEATS = 16;
-/** Assumption, not Google data: typical shelter (awning/heaters) factor. */
+/**
+ * Assumption, not Google data: typical shelter (awning/heaters) factor.
+ * Used only to model weather comfort, never seat counts or availability.
+ */
 const ASSUMED_SHELTER = 0.35;
 
 export type VenueSignals = {
@@ -47,15 +48,15 @@ function hoursFor(periods: GooglePeriod[] | null, weekday: number): { opensAt: n
   };
 }
 
-export function toEngineVenue(v: GoogleVenue, weekday: number): Venue & { outdoor: OutdoorSeatingFlag } {
+export function toEngineVenue(v: GoogleVenue, weekday: number): Venue {
   const { opensAt, closesAt } = hoursFor(v.periods, weekday);
   return {
     id: v.id,
     name: v.name,
-    // Unknown is never treated as yes.
-    terrace: v.outdoorSeating === "yes",
+    // Unknown is never treated as yes, and never as no.
     outdoor: v.outdoorSeating,
-    terraceSeats: ASSUMED_TERRACE_SEATS,
+    // Google publishes no terrace capacity; the engine never uses seat counts.
+    estimatedTerraceSeats: null,
     shelter: ASSUMED_SHELTER,
     rating: v.rating ?? 4,
     reviewCount: v.reviewCount ?? 0,
@@ -88,6 +89,7 @@ export function summarise(
 /** A provider backed by already-fetched real Google venues. */
 export function googlePlacesProvider(venues: GoogleVenue[]): PlacesProvider {
   return {
+    source: "google",
     async findTerraceVenues(_location: ResolvedLocation, date?: Date): Promise<Venue[]> {
       const weekday = (date ?? new Date()).getDay();
       return venues.map((v) => toEngineVenue(v, weekday));
