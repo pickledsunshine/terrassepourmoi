@@ -10,13 +10,26 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { estimateTerrasse, formatHour, parseHour } from "@/lib/terrasse/engine";
 import {
-  fromSuggestion,
-  resolveInput,
-  searchPlaces,
-  type PlaceSuggestion,
+  fromCoordinates,
+  isMapsUrl,
+  parseCoordinates,
   type SelectedLocation,
 } from "@/lib/terrasse/geocode";
+import {
+  autocompletePlaces,
+  getPlaceDetails,
+  resolveMapsLink,
+  searchPlaceText,
+  type GooglePlacePoint,
+  type GooglePlaceSuggestion,
+} from "@/lib/terrasse/places.functions";
 import type { ResolvedLocation, TerrasseResult } from "@/lib/terrasse/types";
+
+/** Google point → the app's normalized location shape. */
+function toSelected(point: GooglePlacePoint): SelectedLocation {
+  const base = fromCoordinates(point.latitude, point.longitude);
+  return { ...base, displayName: point.displayName };
+}
 
 /** Normalized location → the shape the engine consumes (lat/lng driven). */
 function toResolved(loc: SelectedLocation): ResolvedLocation {
@@ -52,7 +65,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   const [place, setPlace] = useState("");
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<GooglePlaceSuggestion[]>([]);
   const [openList, setOpenList] = useState(false);
   const [date, setDate] = useState<Date>(() => new Date());
   const [from, setFrom] = useState("18:30");
@@ -61,6 +74,8 @@ function Home() {
   const [result, setResult] = useState<(TerrasseResult & { area: string }) | null>(null);
   const [pending, setPending] = useState(false);
   const placeBox = useRef<HTMLDivElement>(null);
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lookupSeq = useRef(0);
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
 
@@ -75,17 +90,51 @@ function Home() {
   function onPlaceChange(value: string) {
     setPlace(value);
     setSelected(null);
-    const next = searchPlaces(value);
-    setSuggestions(next);
-    setOpenList(next.length > 0);
+    const query = value.trim();
+    if (debounce.current) clearTimeout(debounce.current);
+    if (query.length < 2 || parseCoordinates(query) || isMapsUrl(query)) {
+      setSuggestions([]);
+      setOpenList(false);
+      return;
+    }
+    const seq = ++lookupSeq.current;
+    debounce.current = setTimeout(async () => {
+      try {
+        const next = await autocompletePlaces({ data: { input: query } });
+        if (seq !== lookupSeq.current) return;
+        setSuggestions(next);
+        setOpenList(next.length > 0);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 220);
   }
 
-  function pickSuggestion(s: PlaceSuggestion) {
-    const loc = fromSuggestion(s);
-    setSelected(loc);
-    setPlace(loc.displayName);
+  async function pickSuggestion(s: GooglePlaceSuggestion) {
+    setPlace(`${s.primary}${s.secondary ? `, ${s.secondary}` : ""}`);
     setOpenList(false);
     setSuggestions([]);
+    try {
+      const point = await getPlaceDetails({ data: { placeId: s.id } });
+      if (point) {
+        const loc = toSelected(point);
+        setSelected(loc);
+        setPlace(loc.displayName);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function resolveTyped(raw: string): Promise<SelectedLocation | null> {
+    const input = raw.trim();
+    if (!input) return null;
+    const coords = parseCoordinates(input);
+    if (coords) return fromCoordinates(coords.latitude, coords.longitude);
+    const point = isMapsUrl(input)
+      ? await resolveMapsLink({ data: { url: input } })
+      : await searchPlaceText({ data: { query: input } });
+    return point ? toSelected(point) : null;
   }
 
   async function onCheck(e: React.FormEvent) {
@@ -93,7 +142,7 @@ function Home() {
     setPending(true);
     setOpenList(false);
     try {
-      const loc = selected ?? (await resolveInput(place));
+      const loc = selected ?? (await resolveTyped(place));
       if (!loc) {
         setResult(null);
         return;
