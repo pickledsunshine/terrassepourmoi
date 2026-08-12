@@ -1,171 +1,295 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { AREAS, predict } from "@/lib/terrasse-engine";
+import {
+  Awning,
+  CloudDrops,
+  OliveBranch,
+  Squiggle,
+  SunSprig,
+  TerraceScene,
+} from "@/components/illustrations";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Terrasse? — Will you get a terrace seat?" },
+      { title: "Terrasse? — Will there be a seat in the sun?" },
       {
         name: "description",
         content:
-          "Pick an area, date, time window and party size. Terrasse? estimates your odds of finding a terrace seat.",
+          "A quiet Paris tool that tells you the odds of finding a terrace seat — by neighbourhood, hour and party size.",
       },
-      { property: "og:title", content: "Terrasse? — Will you get a terrace seat?" },
+      { property: "og:title", content: "Terrasse? — Will there be a seat in the sun?" },
       {
         property: "og:description",
-        content: "Odds of scoring a terrace seat, based on weather, crowds and terrace supply.",
+        content: "The odds of a terrace seat in Paris, written like an invitation.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Index,
+  component: Home,
 });
 
-const fmtHour = (h: number) => `${String(h).padStart(2, "0")}:00`;
+const AREAS = ["Le Marais", "Canal Saint-Martin", "Montmartre", "Belleville", "Saint-Germain"];
 
-function Index() {
-  const today = new Date().toISOString().slice(0, 10);
-  const [areaId, setAreaId] = useState(AREAS[0]!.id);
-  const [dateISO, setDateISO] = useState(today);
-  const [startHour, setStartHour] = useState(19);
-  const [endHour, setEndHour] = useState(21);
-  const [party, setParty] = useState(2);
-
-  const result = useMemo(
-    () => predict({ areaId, dateISO, startHour, endHour, party }),
-    [areaId, dateISO, startHour, endHour, party],
+function Home() {
+  return (
+    <div className="min-h-screen bg-background">
+      <Nav />
+      <Hero />
+      <Invitation />
+      <OddsPreview />
+      <Weather />
+      <Addresses />
+      <Footer />
+    </div>
   );
+}
 
-  const pct = Math.round(result.probability * 100);
-  const mood = pct > 70 ? "sunny" : pct > 45 ? "mild" : "grey";
+function Nav() {
+  return (
+    <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-7">
+      <span className="script-lg leading-none">Terrasse?</span>
+      <nav className="hidden items-center gap-9 sm:flex">
+        <a className="nav-link" href="#invitation">
+          The idea
+        </a>
+        <a className="nav-link" href="#odds">
+          The odds
+        </a>
+        <a className="nav-link" href="#addresses">
+          Addresses
+        </a>
+      </nav>
+      <button type="button" className="btn-outline-ink hidden md:inline-flex">
+        Ask
+      </button>
+    </header>
+  );
+}
+
+function Hero() {
+  return (
+    <section className="mx-auto max-w-5xl px-6 pb-20 pt-10 text-center sm:pt-16">
+      <p className="engraved-soft">Paris · Outdoors · Since always</p>
+
+      <h1 className="script-xl mt-6">
+        Will there be
+        <br />a seat in the sun?
+      </h1>
+
+      <Squiggle className="mx-auto mt-6 w-44" />
+
+      <TerraceScene className="mx-auto mt-8 w-full max-w-md text-foreground" />
+
+      <p className="engraved mt-8">We cordially estimate your chances of a terrace</p>
+
+      <p className="body-note mx-auto mt-4 max-w-md">
+        Choose a quartier, an hour and how many of you there are. We read the sky, the
+        crowd and the number of chairs on the pavement — and answer in one number.
+      </p>
+
+      <div className="mt-9 flex flex-wrap justify-center gap-3">
+        <button type="button" className="btn-ink">
+          Read my odds
+        </button>
+        <button type="button" className="btn-outline-ink">
+          How it works
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function Invitation() {
+  const items = [
+    {
+      icon: <SunSprig className="h-16 w-16" />,
+      title: "The sky",
+      note: "Temperature, wind and the chance of rain at the hour you intend to sit down.",
+    },
+    {
+      icon: <Awning className="h-16 w-16" />,
+      title: "The chairs",
+      note: "How many terrace seats a quartier actually holds, and how many are covered.",
+    },
+    {
+      icon: <OliveBranch className="h-16 w-20" />,
+      title: "The crowd",
+      note: "Apéro pressure, weekends, and the way a warm evening empties every table.",
+    },
+  ];
 
   return (
-    <main className="min-h-screen bg-background px-5 py-10 sm:py-16">
-      <div className="mx-auto w-full max-w-md">
-        <header className="text-center">
-          <h1 className="font-display text-5xl tracking-tight text-foreground">Terrasse?</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your odds of landing a seat in the sun.
-          </p>
-        </header>
+    <section id="invitation" className="band-lavender">
+      <div className="mx-auto max-w-5xl px-6 py-20 text-center">
+        <p className="engraved-soft">Three things we watch</p>
+        <h2 className="script-lg mt-3">Read like an invitation</h2>
 
-        <section className="card-soft mt-8 space-y-5 p-5">
-          <label className="block">
-            <span className="field-label">where</span>
-            <select
-              value={areaId}
-              onChange={(e) => setAreaId(e.target.value)}
-              className="field"
-            >
-              {AREAS.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="mt-14 grid gap-14 sm:grid-cols-3">
+          {items.map((it) => (
+            <div key={it.title} className="flex flex-col items-center">
+              <div className="text-foreground">{it.icon}</div>
+              <h3 className="engraved mt-5">{it.title}</h3>
+              <p className="body-note mt-3 max-w-[16rem]">{it.note}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-          <label className="block">
-            <span className="field-label">when</span>
-            <input
-              type="date"
-              value={dateISO}
-              onChange={(e) => setDateISO(e.target.value || today)}
-              className="field"
-            />
-          </label>
+function OddsPreview() {
+  return (
+    <section id="odds" className="mx-auto max-w-5xl px-6 py-24">
+      <div className="grid items-start gap-16 md:grid-cols-2">
+        {/* the asking */}
+        <div>
+          <p className="engraved-soft">The asking</p>
+          <h2 className="script-lg mt-3">Four small questions</h2>
 
-          <div>
-            <span className="field-label">between</span>
-            <div className="flex items-center gap-3">
-              <select
-                value={startHour}
-                onChange={(e) => setStartHour(Number(e.target.value))}
-                className="field"
-              >
-                {Array.from({ length: 17 }, (_, i) => i + 8).map((h) => (
-                  <option key={h} value={h}>
-                    {fmtHour(h)}
-                  </option>
-                ))}
-              </select>
-              <span className="text-sm text-muted-foreground">and</span>
-              <select
-                value={endHour}
-                onChange={(e) => setEndHour(Number(e.target.value))}
-                className="field"
-              >
-                {Array.from({ length: 17 }, (_, i) => i + 8).map((h) => (
-                  <option key={h} value={h}>
-                    {fmtHour(h)}
-                  </option>
+          <div className="mt-10 space-y-8">
+            <div>
+              <span className="field-caption">Where</span>
+              <select className="field-line" defaultValue={AREAS[0]}>
+                {AREAS.map((a) => (
+                  <option key={a}>{a}</option>
                 ))}
               </select>
             </div>
-          </div>
 
-          <div>
-            <span className="field-label">how many</span>
-            <div className="flex flex-wrap gap-2">
-              {[1, 2, 3, 4, 5, 6, 8].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setParty(n)}
-                  aria-pressed={party === n}
-                  className="chip"
-                >
-                  {n}
-                </button>
-              ))}
+            <div>
+              <span className="field-caption">Which evening</span>
+              <input className="field-line" type="text" defaultValue="Friday 14 August" readOnly />
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <span className="field-caption">From</span>
+                <input className="field-line" type="text" defaultValue="19:00" readOnly />
+              </div>
+              <div>
+                <span className="field-caption">Until</span>
+                <input className="field-line" type="text" defaultValue="21:00" readOnly />
+              </div>
+            </div>
+
+            <div>
+              <span className="field-caption">How many</span>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {[1, 2, 3, 4, 5, 6].map((n) => (
+                  <button key={n} type="button" className="pebble" aria-pressed={n === 2}>
+                    {n}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        <section className="card-soft mt-5 overflow-hidden p-6 text-center" data-mood={mood}>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">chance of a seat</div>
-          <div className="score mt-1">{pct}%</div>
-          <p className="mt-1 text-sm font-medium text-foreground">{result.verdict}</p>
+        {/* the answer */}
+        <div className="paper-card text-center">
+          <p className="engraved-soft">Le Marais · Friday, 19h–21h</p>
+          <p className="odds-figure mt-4">68%</p>
+          <p className="script-md mt-3">Rather promising.</p>
+          <hr className="inked-rule mx-auto mt-6 w-24" />
 
-          <div className="mt-5 flex items-end justify-center gap-1.5">
-            {result.hourly.map((h) => (
-              <div key={h.hour} className="flex w-9 flex-col items-center gap-1">
-                <div className="flex h-20 w-full items-end rounded-md bg-muted">
-                  <div
-                    className="w-full rounded-md bg-primary transition-all"
-                    style={{ height: `${Math.max(6, h.probability * 100)}%` }}
-                    title={`${Math.round(h.probability * 100)}%`}
-                  />
+          <div className="mt-6 flex items-end justify-center gap-2">
+            {[
+              [17, 52],
+              [18, 61],
+              [19, 74],
+              [20, 68],
+              [21, 47],
+            ].map(([hour, v]) => (
+              <div key={hour} className="flex w-10 flex-col items-center gap-2">
+                <div className="flex h-24 w-1.5 items-end rounded-full bg-secondary">
+                  <div className="w-1.5 rounded-full bg-foreground" style={{ height: `${v}%` }} />
                 </div>
-                <span className="text-[10px] text-muted-foreground">{h.hour}h</span>
+                <span className="engraved-soft">{hour}h</span>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Best moment: {fmtHour(result.bestHour)} · {Math.round(result.bestHourProbability * 100)}%
-          </p>
-        </section>
 
-        <section className="card-soft mt-5 divide-y divide-border p-1">
-          {result.factors.map((f) => (
-            <div key={f.label} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div>
-                <div className="text-sm font-medium text-foreground">{f.label}</div>
-                <div className="text-xs text-muted-foreground">{f.note}</div>
-              </div>
-              <span className={f.effect >= 0 ? "pill pill-good" : "pill pill-bad"}>
-                {f.effect >= 0 ? "helps" : "hurts"}
-              </span>
+          <p className="body-note mt-6">
+            Best moment around 19h. After 21h the apéro crowd settles in and rarely moves.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Weather() {
+  return (
+    <section className="band-lavender">
+      <div className="mx-auto flex max-w-5xl flex-col items-center gap-10 px-6 py-16 sm:flex-row sm:justify-between">
+        <div className="flex items-center gap-6">
+          <CloudDrops className="h-16 w-16 text-foreground" />
+          <div>
+            <p className="engraved-soft">This evening in Paris</p>
+            <p className="script-md mt-1">24°, a little wind, rain unlikely</p>
+          </div>
+        </div>
+        <dl className="flex gap-10">
+          {[
+            ["Temperature", "24°"],
+            ["Rain", "12%"],
+            ["Wind", "9 km/h"],
+          ].map(([k, v]) => (
+            <div key={k} className="text-center">
+              <dt className="engraved-soft">{k}</dt>
+              <dd className="script-md mt-1">{v}</dd>
             </div>
           ))}
-        </section>
+        </dl>
+      </div>
+    </section>
+  );
+}
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Running on realistic mock terrace &amp; weather data.
+function Addresses() {
+  const places = [
+    { name: "Café de la Perle", area: "Le Marais", seats: "34 seats", odds: "71%" },
+    { name: "Chez Prune", area: "Canal Saint-Martin", seats: "48 seats", odds: "56%" },
+    { name: "Le Petit Chavignol", area: "Batignolles", seats: "22 seats", odds: "83%" },
+  ];
+
+  return (
+    <section id="addresses" className="mx-auto max-w-5xl px-6 py-24 text-center">
+      <p className="engraved-soft">A few addresses</p>
+      <h2 className="script-lg mt-3">Where the chairs are</h2>
+      <Squiggle className="mx-auto mt-5 w-32" />
+
+      <div className="mt-12 grid gap-8 sm:grid-cols-3">
+        {places.map((p) => (
+          <article key={p.name} className="paper-card text-left">
+            <Awning className="h-12 w-12 text-foreground" />
+            <h3 className="script-md mt-4">{p.name}</h3>
+            <p className="engraved-soft mt-2">{p.area}</p>
+            <hr className="inked-rule mt-5 w-full" />
+            <div className="mt-4 flex items-baseline justify-between">
+              <span className="body-note">{p.seats}</span>
+              <span className="script-md">{p.odds}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="band-lavender">
+      <div className="mx-auto max-w-5xl px-6 py-16 text-center">
+        <p className="script-lg">Terrasse?</p>
+        <OliveBranch className="mx-auto mt-4 w-40 text-foreground" />
+        <p className="engraved mt-6">Made in Paris, for sitting outside</p>
+        <p className="body-note mx-auto mt-3 max-w-sm">
+          A quiet instrument, not a booking platform. No accounts, no notifications.
         </p>
       </div>
-    </main>
+    </footer>
   );
 }
