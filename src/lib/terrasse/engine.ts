@@ -6,26 +6,36 @@ import type {
   TerrasseQuery,
   TerrasseResult,
   Venue,
+  VenueSupply,
   WeatherProvider,
 } from "./types";
 
 /**
- * V1 probability engine — simple, deterministic and transparent.
+ * TERRACE SUITABILITY ENGINE
  *
- * It estimates: "the probability that at least one suitable terrace option is
- * likely to be free for this party during this window". It never claims to
- * know real-time table availability.
+ * What this computes: how favourable conditions are for finding and enjoying
+ * an open terrace nearby during the selected window.
+ *
+ * What this does NOT compute: whether a table is actually free. No provider
+ * publishes live table inventory or terrace capacity, so the model uses only
+ * observable signals:
+ *   - weather (temperature, rain, wind, cloud)
+ *   - time of day / day of week (crowd pressure)
+ *   - venue opening hours
+ *   - CONFIRMED outdoor seating counts (unknown is never counted as yes)
+ *   - party size friction
+ *
+ * Assumed seat counts are deliberately absent from every formula below.
+ * A future real availability provider plugs in via `availability.ts`.
  */
 
 export type EngineDeps = { places: PlacesProvider; weather: WeatherProvider };
 
 const defaultDeps: EngineDeps = { places: mockPlaces, weather: mockWeather };
 
-const K_TABLES = 0.036;
-
 /**
- * Demand curve: share of terrace seats typically taken at this hour,
- * before day-of-week and weather effects. Lunch, apéro and dinner peaks.
+ * Demand curve: relative crowd pressure at this hour, before day-of-week and
+ * weather effects. Lunch, apéro and dinner peaks.
  */
 function demandCurve(hour: number): number {
   return (
@@ -61,11 +71,11 @@ export function weatherSuitability(w: {
 }
 
 /**
- * USABILITY — whether a terrace seat is actually sittable, given shelter.
+ * USABILITY — whether a terrace seat is physically sittable, given shelter.
  * Rain and cold reduce demand, but they also make the seats unpleasant, so
- * they must reduce the final availability answer too.
+ * they must reduce the final answer too.
  */
-function usability(
+export function usability(
   w: { temperatureC: number; precipitationProbability: number; precipitationMm: number; windKph: number },
   shelter: number,
 ) {
@@ -76,19 +86,40 @@ function usability(
   return Math.max(0.04, Math.min(1, (1 - rain) * (1 - cold) * (1 - heat) * (1 - wind)));
 }
 
-function openDuring(v: Venue, from: number, to: number) {
+export function openDuring(v: Venue, from: number, to: number) {
   return v.opensAt <= to - 0.25 && v.closesAt >= from + 0.25;
 }
 
-/** Venues that could physically seat this party outside during the window. */
-function suitable(venues: Venue[], party: number, from: number, to: number) {
-  return venues.filter(
-    (v) =>
-      v.terrace &&
-      openDuring(v, from, to) &&
-      v.terraceSeats >= party + 1 &&
-      (party <= 4 || v.acceptsGroups),
-  );
+/**
+ * SUPPLY BREADTH — more confirmed open terraces means more chances that one
+ * of them works out. Saturating: after ~10 options, extra ones add little.
+ * Counts only, never seats.
+ */
+export function supplyBreadth(confirmedOpen: number): number {
+  return 1 - Math.exp(-confirmedOpen / 3.6);
+}
+
+/** Bigger groups are harder to place, whatever the terrace looks like. */
+export function partyFriction(party: number): number {
+  return party <= 2 ? 1 : 1 / (1 + (party - 2) * 0.22);
+}
+
+/** Factual, countable supply signals for the selected window. */
+export function summariseSupply(
+  venues: Venue[],
+  from: number,
+  to: number,
+  source: VenueSupply["source"],
+): VenueSupply {
+  const open = venues.filter((v) => openDuring(v, from, to));
+  return {
+    considered: venues.length,
+    openDuringWindow: open.length,
+    outdoorConfirmed: open.filter((v) => v.outdoor === "yes").length,
+    outdoorUnknown: open.filter((v) => v.outdoor === "unknown").length,
+    outdoorNone: open.filter((v) => v.outdoor === "no").length,
+    source,
+  };
 }
 
 export async function estimateTerrasse(
@@ -107,11 +138,21 @@ export async function estimateTerrasse(
   const day = date.getDay();
   const dayMult = dayDemandMultiplier(day);
 
-  // BASE SUPPLY — open, outdoor, big enough for this party.
-  const openVenues = suitable(venues, party, from, to);
-  const avgShelter = openVenues.length
-    ? openVenues.reduce((a, v) => a + v.shelter, 0) / openVenues.length
+  const supply = summariseSupply(venues, from, to, deps.places.source ?? "mock-fallback");
+
+  // Only venues with CONFIRMED outdoor seating feed the score.
+  const confirmed = venues.filter(
+    (v) => v.outdoor === "yes" && openDuring(v, from, to) && (party <= 4 || v.acceptsGroups),
+  );
+  const breadth = supplyBreadth(confirmed.length);
+  const avgShelter = confirmed.length
+    ? confirmed.reduce((a, v) => a + v.shelter, 0) / confirmed.length
     : 0.3;
+  const avgRating = confirmed.length
+    ? confirmed.reduce((a, v) => a + v.rating, 0) / confirmed.length
+    : 4;
+  const quality = Math.max(0.85, Math.min(1.08, 0.85 + (avgRating - 3.6) * 0.14));
+  const friction = partyFriction(party);
 
   // Sample the window every 15 minutes and keep the best slot.
   let best = { p: 0, t: from, suitability: 0.5, demand: 1, occupancy: 0.5 };
@@ -122,21 +163,14 @@ export async function estimateTerrasse(
     const attractiveness = weatherSuitability(w);
     const sittable = usability(w, avgShelter);
 
-    // DEMAND — time of day × day of week × weather appetite × party friction.
+    // DEMAND — time of day × day of week × weather appetite.
     const demand = demandCurve(t) * dayMult * (0.55 + 0.7 * attractiveness);
-    // Saturating map from demand pressure to occupied share of the terrace.
+    // Saturating map from demand pressure to how busy terraces tend to be.
     const occupancy = Math.min(0.97, 1 - Math.exp(-demand * 1.15));
+    // Crowd pressure eats into how favourable the moment is.
+    const headroom = Math.max(0.05, 1 - occupancy * 0.92);
 
-    // Free seats per venue, then the chance of at least one table for the party.
-    let expectedTables = 0;
-    for (const v of openVenues) {
-      const free = v.terraceSeats * (1 - occupancy);
-      // A group needs adjacent seats: harder than the raw seat count suggests.
-      const groupFriction = party <= 2 ? 1 : 1 / (1 + (party - 2) * 0.28);
-      expectedTables += (free / (party + 1)) * groupFriction * (0.75 + (v.rating - 4) * 0.15);
-    }
-
-    const p = (1 - Math.exp(-K_TABLES * Math.max(0, expectedTables))) * sittable;
+    const p = Math.max(0, Math.min(1, breadth * headroom * sittable * friction * quality));
     sum += p;
     samples += 1;
     if (p > best.p) best = { p, t, suitability: attractiveness, demand, occupancy };
@@ -149,7 +183,10 @@ export async function estimateTerrasse(
 
   const w = weatherAt(forecast, best.t);
   const factors: Factor[] = [
-    { label: `${openVenues.length} terraces open nearby`, impact: Math.min(1, openVenues.length / 8) - 0.35 },
+    {
+      label: `${supply.outdoorConfirmed} confirmed terraces open nearby`,
+      impact: breadth - 0.5,
+    },
     {
       label:
         w.precipitationProbability > 0.5
@@ -184,8 +221,11 @@ export async function estimateTerrasse(
       return { from: start, to: Math.min(to, start + 0.5) };
     })(),
     weatherLine: `${Math.round(w.temperatureC)}°C · ${rainWord(w.precipitationProbability)} · ${Math.round(w.windKph)} km/h wind · ${forecast.summary}`,
-    venuesConsidered: venues.length,
-    venuesOpen: openVenues.length,
+    venuesConsidered: supply.considered,
+    venuesOpen: supply.openDuringWindow,
+    supply,
+    // No live table inventory exists today, and we do not simulate one.
+    tableAvailability: null,
     factors,
     explanation:
       probability >= 45
