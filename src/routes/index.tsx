@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { CalendarIcon, ChevronDown, Clock } from "lucide-react";
-import cafeDuo from "@/assets/cafe-duo-exact.png.asset.json";
+import cafeDuo from "@/assets/cafe-duo.png.asset.json";
+import titleArt from "@/assets/terrasse-title.png.asset.json";
+import checkArt from "@/assets/check-button.png.asset.json";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -59,10 +61,18 @@ function Home() {
 
   return (
     <main className="min-h-screen w-full overflow-hidden bg-background">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1536px] grid-cols-1 items-center gap-8 px-8 py-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1fr)] lg:px-16">
-        {/* ————— left: title + tool ————— */}
+      <div className="mx-auto grid min-h-screen w-full max-w-[1536px] grid-cols-1 items-center gap-10 px-8 py-10 lg:grid-cols-[45fr_55fr] lg:px-16">
+        {/* ————— left: title artwork + tool ————— */}
         <section className="order-2 w-full max-w-[34rem] lg:order-1 lg:self-center">
-          <h1 className="script-xl mb-10 -ml-1">Terrasse?</h1>
+          <h1 className="mb-10 -ml-1">
+            <img
+              src={titleArt.url}
+              alt="Terrasse?"
+              width={650}
+              height={255}
+              className="w-full max-w-[26rem]"
+            />
+          </h1>
 
           <form className="space-y-7" onSubmit={onCheck}>
             <div>
@@ -147,9 +157,25 @@ function Home() {
               </div>
             </div>
 
-            <button type="submit" className="btn-check w-full" disabled={pending}>
-              {pending ? "Checking…" : "Check"}
-            </button>
+            {/* visible layer = exact Check artwork, functional layer = transparent button */}
+            <div className="relative w-full select-none">
+              <img
+                src={checkArt.url}
+                alt=""
+                aria-hidden="true"
+                width={620}
+                height={95}
+                className="pointer-events-none w-full"
+              />
+              <button
+                type="submit"
+                disabled={pending}
+                aria-label="Check"
+                className="absolute inset-0 h-full w-full cursor-pointer rounded-full bg-transparent opacity-0"
+              >
+                Check
+              </button>
+            </div>
           </form>
 
           <div className="mt-6 min-h-[8rem] border-t border-border pt-5">
@@ -178,9 +204,9 @@ function Home() {
           <img
             src={cafeDuo.url}
             alt="Hand-drawn indigo ink sketch of two people at a small café table with wine glasses"
-            width={736}
-            height={770}
-            className="mx-auto w-full max-w-[42rem]"
+            width={716}
+            height={780}
+            className="mx-auto w-full max-w-[44rem]"
           />
         </section>
       </div>
