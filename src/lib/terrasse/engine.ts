@@ -21,7 +21,7 @@ export type EngineDeps = { places: PlacesProvider; weather: WeatherProvider };
 
 const defaultDeps: EngineDeps = { places: mockPlaces, weather: mockWeather };
 
-const K_TABLES = 0.055;
+const K_TABLES = 0.036;
 
 /**
  * Demand curve: share of terrace seats typically taken at this hour,
