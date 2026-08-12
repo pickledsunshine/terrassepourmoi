@@ -47,34 +47,39 @@ function Home() {
   async function onCheck(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);
-    const location = resolveLocation(place);
-    const res = await estimateTerrasse({
-      location,
-      date,
-      from: parseHour(from),
-      to: parseHour(to),
-      party,
-    });
-    setResult({ ...res, area: location.label });
-    setPending(false);
+    try {
+      const location = resolveLocation(place);
+      const res = await estimateTerrasse({
+        location,
+        date,
+        from: parseHour(from),
+        to: parseHour(to),
+        party,
+      });
+      setResult({ ...res, area: location.label });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
     <main className="min-h-screen w-full overflow-hidden bg-background">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1536px] grid-cols-1 items-center gap-10 px-8 py-10 lg:grid-cols-[45fr_55fr] lg:px-16">
+      <div className="mx-auto grid min-h-screen w-full max-w-[1536px] grid-cols-1 items-center gap-8 px-6 py-4 md:grid-cols-[50fr_50fr] md:gap-10 md:px-12 lg:px-16">
         {/* ————— left: title artwork + tool ————— */}
-        <section className="order-2 w-full max-w-[34rem] lg:order-1 lg:self-center">
-          <h1 className="mb-10 -ml-1">
+        <section className="order-2 w-full max-w-[28rem] md:order-1 md:self-center">
+          <h1 className="mb-4 -ml-1">
             <img
               src={titleArt.url}
               alt="Terrasse?"
               width={650}
               height={255}
-              className="w-full max-w-[26rem]"
+              className="w-full max-w-[15rem]"
             />
           </h1>
 
-          <form className="space-y-7" onSubmit={onCheck}>
+          <form className="space-y-4" onSubmit={onCheck}>
             <div>
               <label className="field-caption" htmlFor="place">
                 Where?
@@ -93,7 +98,7 @@ function Home() {
               <div className="mt-1 flex flex-wrap items-center gap-3">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button type="button" className="pebble flex shrink-0 items-center gap-2 px-4 py-3 text-base">
+                  <button type="button" className="pebble flex shrink-0 items-center gap-2 px-3 py-2 text-sm">
                       <CalendarIcon className="h-4 w-4 opacity-70" />
                       {format(date, "MMM d, yyyy")}
                       <ChevronDown className="h-4 w-4 opacity-70" />
@@ -110,27 +115,29 @@ function Home() {
                   </PopoverContent>
                 </Popover>
 
-                <label className="pebble flex shrink-0 items-center gap-2 px-4 py-3 text-base">
-                  <input
-                    type="time"
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                    aria-label="Start time"
-                    className="bg-transparent text-base outline-none [&::-webkit-calendar-picker-indicator]:hidden"
-                  />
-                  <Clock className="h-4 w-4 opacity-70" />
-                </label>
-                <span className="text-muted-foreground">—</span>
-                <label className="pebble flex shrink-0 items-center gap-2 px-4 py-3 text-base">
-                  <input
-                    type="time"
-                    value={to}
-                    onChange={(e) => setTo(e.target.value)}
-                    aria-label="End time"
-                    className="bg-transparent text-base outline-none [&::-webkit-calendar-picker-indicator]:hidden"
-                  />
-                  <Clock className="h-4 w-4 opacity-70" />
-                </label>
+                <div className="flex shrink-0 items-center gap-3">
+                  <label className="pebble flex items-center gap-2 px-3 py-2 text-sm">
+                    <input
+                      type="time"
+                      value={from}
+                      onChange={(e) => setFrom(e.target.value)}
+                      aria-label="Start time"
+                      className="bg-transparent text-sm outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                    <Clock className="h-4 w-4 opacity-70" />
+                  </label>
+                  <span className="text-muted-foreground">—</span>
+                  <label className="pebble flex items-center gap-2 px-3 py-2 text-sm">
+                    <input
+                      type="time"
+                      value={to}
+                      onChange={(e) => setTo(e.target.value)}
+                      aria-label="End time"
+                      className="bg-transparent text-sm outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                    <Clock className="h-4 w-4 opacity-70" />
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -140,7 +147,7 @@ function Home() {
                 <button
                   type="button"
                   aria-label="Fewer people"
-                  className="btn-outline-ink h-11 w-11 rounded-full p-0 text-lg leading-none"
+                  className="btn-outline-ink h-10 w-10 rounded-full p-0 text-lg leading-none"
                   onClick={() => setParty((n) => Math.max(1, n - 1))}
                 >
                   −
@@ -149,7 +156,7 @@ function Home() {
                 <button
                   type="button"
                   aria-label="More people"
-                  className="btn-outline-ink h-11 w-11 rounded-full p-0 text-lg leading-none"
+                  className="btn-outline-ink h-10 w-10 rounded-full p-0 text-lg leading-none"
                   onClick={() => setParty((n) => Math.min(12, n + 1))}
                 >
                   +
@@ -178,35 +185,31 @@ function Home() {
             </div>
           </form>
 
-          <div className="mt-6 min-h-[8rem] border-t border-border pt-5">
+          <div className="mt-3 border-t border-border pt-3">
             {result && (
               <>
-                <p className="odds-figure text-6xl leading-none">{result.probability}%</p>
+                <p className="odds-figure text-5xl leading-none">{result.probability}%</p>
                 <p className="engraved mt-1">{result.verdict}</p>
-                <p className="body-note mt-2">
+                <p className="body-note mt-1">
                   {result.area} · {party} {party === 1 ? "person" : "people"} · {from}–{to}
                 </p>
+                <p className="body-note">{result.weatherLine} · {dayLabel}</p>
                 <p className="body-note">
-                  {result.weatherLine} · {dayLabel}
+                  Best window: {formatHour(result.bestWindow.from)}–{formatHour(result.bestWindow.to)}
                 </p>
-                <p className="body-note">
-                  Best window: {formatHour(result.bestWindow.from)}–{formatHour(result.bestWindow.to)} ·{" "}
-                  {result.venuesOpen} of {result.venuesConsidered} terraces open
-                </p>
-                <p className="body-note mt-1 italic">{result.explanation}</p>
               </>
             )}
           </div>
         </section>
 
         {/* ————— right: the exact artwork ————— */}
-        <section className="order-1 lg:order-2 lg:self-center">
+        <section className="order-1 flex items-center justify-center md:order-2 md:self-center">
           <img
             src={cafeDuo.url}
             alt="Hand-drawn indigo ink sketch of two people at a small café table with wine glasses"
             width={716}
             height={780}
-            className="mx-auto w-full max-w-[44rem]"
+            className="h-auto w-full max-w-[20rem] max-h-[48vh] object-contain md:max-w-[24rem]"
           />
         </section>
       </div>
