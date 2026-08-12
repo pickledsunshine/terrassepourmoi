@@ -41,10 +41,10 @@ export type HourlyWeather = {
   cloudCover: number; // 0..1
   windKph: number;
   /** Optional richer fields supplied by the real forecast provider. */
-  apparentTemperatureC?: number;
-  rainMm?: number;
-  windGustKph?: number;
-  weatherCode?: number;
+  apparentTemperatureC?: number | undefined;
+  rainMm?: number | undefined;
+  windGustKph?: number | undefined;
+  weatherCode?: number | undefined;
 };
 
 export type WeatherForecast = {
