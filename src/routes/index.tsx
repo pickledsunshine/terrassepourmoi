@@ -51,28 +51,62 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const [place, setPlace] = useState("");
+  const [selected, setSelected] = useState<SelectedLocation | null>(null);
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [openList, setOpenList] = useState(false);
   const [date, setDate] = useState<Date>(() => new Date());
   const [from, setFrom] = useState("18:30");
   const [to, setTo] = useState("20:00");
   const [party, setParty] = useState(2);
   const [result, setResult] = useState<(TerrasseResult & { area: string }) | null>(null);
   const [pending, setPending] = useState(false);
+  const placeBox = useRef<HTMLDivElement>(null);
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (placeBox.current && !placeBox.current.contains(e.target as Node)) setOpenList(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  function onPlaceChange(value: string) {
+    setPlace(value);
+    setSelected(null);
+    const next = searchPlaces(value);
+    setSuggestions(next);
+    setOpenList(next.length > 0);
+  }
+
+  function pickSuggestion(s: PlaceSuggestion) {
+    const loc = fromSuggestion(s);
+    setSelected(loc);
+    setPlace(loc.displayName);
+    setOpenList(false);
+    setSuggestions([]);
+  }
 
   async function onCheck(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);
+    setOpenList(false);
     try {
-      const location = resolveLocation(place);
+      const loc = selected ?? (await resolveInput(place));
+      if (!loc) {
+        setResult(null);
+        return;
+      }
+      setSelected(loc);
       const res = await estimateTerrasse({
-        location,
+        location: toResolved(loc),
         date,
         from: parseHour(from),
         to: parseHour(to),
         party,
       });
-      setResult({ ...res, area: location.label });
+      setResult({ ...res, area: loc.displayName });
     } catch (err) {
       console.error(err);
     } finally {
