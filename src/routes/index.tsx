@@ -39,8 +39,7 @@ function Home() {
         <img
           src={wineSketch.url}
           alt="Hand-drawn sketch of a wine bottle and two glasses"
-          className="mx-auto mt-2 h-28 w-auto mix-blend-multiply opacity-90"
-          style={{ filter: "invert(16%) sepia(74%) saturate(1900%) hue-rotate(243deg)" }}
+          className="mx-auto mt-2 h-28 w-auto opacity-85 mix-blend-multiply"
         />
 
         <form

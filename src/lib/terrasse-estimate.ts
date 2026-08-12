@@ -49,7 +49,7 @@ export function estimate(input: {
   const partyPenalty = Math.max(0, input.party - 2) * 0.075;
   const weatherComfort = 0.82; // mock: a mild, dry Paris evening
 
-  const pressure = bestDemand * popularity * (1 + weatherComfort * 0.35);
+  const pressure = (bestDemand / 1.7) * popularity * (1.35 - weatherComfort * 0.35);
   let p = 1 - pressure + windowBonus - partyPenalty;
   p = Math.max(0.04, Math.min(0.96, p));
 
