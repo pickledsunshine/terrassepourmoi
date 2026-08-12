@@ -93,7 +93,7 @@ function Home() {
               <div className="mt-1 flex flex-wrap items-center gap-3">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button type="button" className="pebble flex shrink-0 items-center gap-2 px-4 py-3 text-base">
+                  <button type="button" className="pebble flex shrink-0 items-center gap-2 px-3 py-2 text-sm">
                       <CalendarIcon className="h-4 w-4 opacity-70" />
                       {format(date, "MMM d, yyyy")}
                       <ChevronDown className="h-4 w-4 opacity-70" />
