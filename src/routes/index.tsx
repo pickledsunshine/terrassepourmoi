@@ -83,7 +83,7 @@ function Home() {
               <div className="mt-1 flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button type="button" className="pebble flex items-center gap-2 px-4 py-2.5">
+                    <button type="button" className="pebble flex shrink-0 items-center gap-2 px-3 py-2.5 text-sm">
                       <CalendarIcon className="h-4 w-4 opacity-70" />
                       {format(date, "MMM d, yyyy")}
                     </button>
@@ -104,7 +104,7 @@ function Home() {
                   value={from}
                   onChange={(e) => setFrom(e.target.value)}
                   aria-label="Start time"
-                  className="pebble px-4 py-2.5 text-center"
+                  className="pebble shrink-0 px-3 py-2.5 text-center text-sm"
                 />
                 <span className="text-muted-foreground">—</span>
                 <input
@@ -112,7 +112,7 @@ function Home() {
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
                   aria-label="End time"
-                  className="pebble px-4 py-2.5 text-center"
+                  className="pebble shrink-0 px-3 py-2.5 text-center text-sm"
                 />
               </div>
             </div>

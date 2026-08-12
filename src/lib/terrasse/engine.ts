@@ -129,7 +129,10 @@ export async function estimateTerrasse(
   return {
     probability,
     verdict,
-    bestWindow: { from: best.t, to: Math.min(to, best.t + 0.5) },
+    bestWindow: (() => {
+      const start = Math.max(from, Math.min(best.t, to - 0.5));
+      return { from: start, to: Math.min(to, start + 0.5) };
+    })(),
     weatherLine: `${Math.round(w.temperatureC)}°C · ${rainWord(w.precipitationProbability)} · ${Math.round(w.windKph)} km/h wind · ${forecast.summary}`,
     venuesConsidered: venues.length,
     venuesOpen: openVenues.length,
