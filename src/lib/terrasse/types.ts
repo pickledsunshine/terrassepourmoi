@@ -75,7 +75,8 @@ export type TerrasseResult = {
 };
 
 export interface PlacesProvider {
-  findTerraceVenues(location: ResolvedLocation): Promise<Venue[]>;
+  /** `date` lets a provider honour weekday-specific opening hours. */
+  findTerraceVenues(location: ResolvedLocation, date?: Date): Promise<Venue[]>;
 }
 
 export interface WeatherProvider {

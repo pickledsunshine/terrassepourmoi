@@ -68,7 +68,7 @@ export async function estimateTerrasse(
   const to = Math.max(query.to, from + 0.25);
 
   const [venues, forecast] = await Promise.all([
-    deps.places.findTerraceVenues(location),
+    deps.places.findTerraceVenues(location, date),
     deps.weather.getForecast(location, date),
   ]);
 
