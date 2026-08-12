@@ -74,7 +74,7 @@ function Home() {
             />
           </h1>
 
-          <form className="space-y-5" onSubmit={onCheck}>
+          <form className="space-y-4" onSubmit={onCheck}>
             <div>
               <label className="field-caption" htmlFor="place">
                 Where?
