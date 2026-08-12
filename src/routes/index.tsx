@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import cafeDuo from "@/assets/cafe-duo.png.asset.json";
+import cafeDuo from "@/assets/cafe-duo-transparent.png.asset.json";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -80,7 +80,7 @@ function Home() {
 
             <div>
               <span className="field-caption">When?</span>
-              <div className="mt-1 flex flex-wrap items-center gap-3">
+              <div className="mt-1 flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <button type="button" className="pebble flex items-center gap-2 px-4 py-2.5">
@@ -172,7 +172,7 @@ function Home() {
             alt="Hand-drawn indigo ink sketch of two people at a small café table with wine glasses"
             width={1024}
             height={1024}
-            className="mx-auto w-full max-w-[34rem] mix-blend-multiply"
+            className="mx-auto w-full max-w-[34rem]"
           />
         </section>
       </div>
