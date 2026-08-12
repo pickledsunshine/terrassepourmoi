@@ -65,7 +65,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   const [place, setPlace] = useState("");
   const [selected, setSelected] = useState<SelectedLocation | null>(null);
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<GooglePlaceSuggestion[]>([]);
   const [openList, setOpenList] = useState(false);
   const [date, setDate] = useState<Date>(() => new Date());
   const [from, setFrom] = useState("18:30");
