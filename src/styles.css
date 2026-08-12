@@ -15,6 +15,7 @@
 
 @theme inline {
   --font-script: "Caveat", "Segoe Script", cursive;
+  --font-display: "Sacramento", "Caveat", cursive;
   --font-sans: "Jost", ui-sans-serif, system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
