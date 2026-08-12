@@ -21,6 +21,13 @@ export type GooglePlacePoint = {
 const PLACES = "https://places.googleapis.com/v1";
 const PARIS = { latitude: 48.8566, longitude: 2.3522 };
 
+/** Avoid repeating the place name when the address already starts with it. */
+function label(name?: string, address?: string): string | null {
+  if (!name) return address ?? null;
+  if (!address) return name;
+  return address.startsWith(name) ? address : `${name}, ${address}`;
+}
+
 function apiKey(): string {
   const key = process.env["TERASSE_GOOGLEMAPS"];
   if (!key) throw new Error("Missing TERASSE_GOOGLEMAPS secret on the server.");
@@ -82,9 +89,7 @@ export const getPlaceDetails = createServerFn({ method: "POST" })
     });
     if (!json?.location) return null;
     return {
-      displayName: json.displayName?.text
-        ? `${json.displayName.text}${json.formattedAddress ? `, ${json.formattedAddress}` : ""}`
-        : (json.formattedAddress ?? "Paris"),
+      displayName: label(json.displayName?.text, json.formattedAddress) ?? "Paris",
       latitude: json.location.latitude,
       longitude: json.location.longitude,
     };
@@ -103,9 +108,7 @@ async function textSearch(query: string): Promise<GooglePlacePoint | null> {
   const place = json.places?.[0];
   if (!place?.location) return null;
   return {
-    displayName: place.displayName?.text
-      ? `${place.displayName.text}${place.formattedAddress ? `, ${place.formattedAddress}` : ""}`
-      : (place.formattedAddress ?? query),
+    displayName: label(place.displayName?.text, place.formattedAddress) ?? query,
     latitude: place.location.latitude,
     longitude: place.location.longitude,
   };
