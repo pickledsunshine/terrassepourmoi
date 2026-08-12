@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Clock } from "lucide-react";
+import { CalendarIcon, ChevronDown, Clock, MapPin } from "lucide-react";
 import cafeDuo from "@/assets/cafe-duo.png.asset.json";
 import titleArt from "@/assets/terrasse-title.png.asset.json";
 import checkArt from "@/assets/check-button.png.asset.json";
@@ -9,8 +9,24 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { estimateTerrasse, formatHour, parseHour } from "@/lib/terrasse/engine";
-import { resolveLocation } from "@/lib/terrasse/location";
-import type { TerrasseResult } from "@/lib/terrasse/types";
+import {
+  fromSuggestion,
+  resolveInput,
+  searchPlaces,
+  type PlaceSuggestion,
+  type SelectedLocation,
+} from "@/lib/terrasse/geocode";
+import type { ResolvedLocation, TerrasseResult } from "@/lib/terrasse/types";
+
+/** Normalized location → the shape the engine consumes (lat/lng driven). */
+function toResolved(loc: SelectedLocation): ResolvedLocation {
+  return {
+    label: loc.displayName,
+    lat: loc.latitude,
+    lng: loc.longitude,
+    source: "address",
+  };
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
