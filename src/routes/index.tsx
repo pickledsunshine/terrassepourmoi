@@ -23,7 +23,15 @@ import {
   type GooglePlacePoint,
   type GooglePlaceSuggestion,
 } from "@/lib/terrasse/places.functions";
-import type { ResolvedLocation, TerrasseResult } from "@/lib/terrasse/types";
+import { fetchForecast } from "@/lib/terrasse/weather.functions";
+import { staticWeatherProvider, toForecast } from "@/lib/terrasse/weather.openmeteo";
+import { mockPlaces } from "@/lib/terrasse/places.mock";
+import type { ResolvedLocation, TerrasseResult, WeatherForecast } from "@/lib/terrasse/types";
+
+/** Local calendar day (not UTC) for the Open-Meteo request. */
+function isoDay(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 /** Google point → the app's normalized location shape. */
 function toSelected(point: GooglePlacePoint): SelectedLocation {
@@ -73,11 +81,41 @@ function Home() {
   const [party, setParty] = useState(2);
   const [result, setResult] = useState<(TerrasseResult & { area: string }) | null>(null);
   const [pending, setPending] = useState(false);
+  const [forecast, setForecast] = useState<WeatherForecast | null>(null);
+  const [weatherState, setWeatherState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const placeBox = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lookupSeq = useRef(0);
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
+
+  // Real forecast: refetched whenever location, date or time window changes.
+  useEffect(() => {
+    if (!selected) {
+      setForecast(null);
+      setWeatherState("idle");
+      return;
+    }
+    let cancelled = false;
+    setWeatherState("loading");
+    fetchForecast({
+      data: { latitude: selected.latitude, longitude: selected.longitude, date: isoDay(date) },
+    })
+      .then((raw) => {
+        if (cancelled) return;
+        setForecast(toForecast(raw));
+        setWeatherState("ready");
+      })
+      .catch((err) => {
+        console.error(err);
+        if (cancelled) return;
+        setForecast(null);
+        setWeatherState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, date, from, to]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -148,13 +186,37 @@ function Home() {
         return;
       }
       setSelected(loc);
-      const res = await estimateTerrasse({
-        location: toResolved(loc),
-        date,
-        from: parseHour(from),
-        to: parseHour(to),
-        party,
-      });
+
+      // Real weather for the chosen point, day and window.
+      let live = forecast;
+      if (!live || loc !== selected) {
+        setWeatherState("loading");
+        try {
+          const raw = await fetchForecast({
+            data: { latitude: loc.latitude, longitude: loc.longitude, date: isoDay(date) },
+          });
+          live = toForecast(raw);
+          setForecast(live);
+          setWeatherState("ready");
+        } catch (err) {
+          console.error(err);
+          setForecast(null);
+          setWeatherState("error");
+          setResult(null);
+          return;
+        }
+      }
+
+      const res = await estimateTerrasse(
+        {
+          location: toResolved(loc),
+          date,
+          from: parseHour(from),
+          to: parseHour(to),
+          party,
+        },
+        { places: mockPlaces, weather: staticWeatherProvider(live) },
+      );
       setResult({ ...res, area: loc.displayName });
     } catch (err) {
       console.error(err);
@@ -319,6 +381,10 @@ function Home() {
           </form>
 
           <div className="mt-3 border-t border-border pt-3">
+            {pending && !result && <p className="body-note">Checking the sky…</p>}
+            {weatherState === "error" && !pending && (
+              <p className="body-note">Weather unavailable right now — try again in a moment.</p>
+            )}
             {result && (
               <>
                 <p className="odds-figure text-5xl leading-none">{result.probability}%</p>

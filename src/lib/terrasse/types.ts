@@ -40,6 +40,11 @@ export type HourlyWeather = {
   precipitationMm: number;
   cloudCover: number; // 0..1
   windKph: number;
+  /** Optional richer fields supplied by the real forecast provider. */
+  apparentTemperatureC?: number;
+  rainMm?: number;
+  windGustKph?: number;
+  weatherCode?: number;
 };
 
 export type WeatherForecast = {
