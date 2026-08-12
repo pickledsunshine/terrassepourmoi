@@ -45,18 +45,26 @@ function Home() {
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
 
   async function onCheck(e: React.FormEvent) {
+    console.log("onCheck fired");
     e.preventDefault();
     setPending(true);
-    const location = resolveLocation(place);
-    const res = await estimateTerrasse({
-      location,
-      date,
-      from: parseHour(from),
-      to: parseHour(to),
-      party,
-    });
-    setResult({ ...res, area: location.label });
-    setPending(false);
+    try {
+      const location = resolveLocation(place);
+      console.log("location", location);
+      const res = await estimateTerrasse({
+        location,
+        date,
+        from: parseHour(from),
+        to: parseHour(to),
+        party,
+      });
+      console.log("res", res);
+      setResult({ ...res, area: location.label });
+    } catch (err) {
+      console.error("estimateTerrasse error", err);
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
