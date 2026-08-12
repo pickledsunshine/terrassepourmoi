@@ -21,6 +21,8 @@ export type EngineDeps = { places: PlacesProvider; weather: WeatherProvider };
 
 const defaultDeps: EngineDeps = { places: mockPlaces, weather: mockWeather };
 
+const K_TABLES = 0.055;
+
 /**
  * Demand curve: share of terrace seats typically taken at this hour,
  * before day-of-week and weather effects. Lunch, apéro and dinner peaks.
@@ -113,6 +115,8 @@ export async function estimateTerrasse(
 
   // Sample the window every 15 minutes and keep the best slot.
   let best = { p: 0, t: from, suitability: 0.5, demand: 1, occupancy: 0.5 };
+  let sum = 0;
+  let samples = 0;
   for (let t = from; t <= to; t += 0.25) {
     const w = weatherAt(forecast, t);
     const attractiveness = weatherSuitability(w);
@@ -131,13 +135,16 @@ export async function estimateTerrasse(
       expectedTables += (free / (party + 1)) * groupFriction * (0.75 + (v.rating - 4) * 0.15);
     }
 
-    const p = (1 - Math.exp(-0.22 * Math.max(0, expectedTables))) * sittable;
+    const p = (1 - Math.exp(-K_TABLES * Math.max(0, expectedTables))) * sittable;
+    sum += p;
+    samples += 1;
     if (p > best.p) best = { p, t, suitability: attractiveness, demand, occupancy };
   }
 
-  // A longer window means more chances at the good slot.
-  const windowBonus = Math.min(0.08, (to - from) * 0.03) * best.p;
-  const probability = Math.round(Math.max(2, Math.min(95, (best.p + windowBonus) * 100)));
+  // Most of the window matters, not only its quietest minute.
+  const mean = samples ? sum / samples : 0;
+  const blended = mean * 0.7 + best.p * 0.3;
+  const probability = Math.round(Math.max(2, Math.min(95, blended * 100)));
 
   const w = weatherAt(forecast, best.t);
   const factors: Factor[] = [
