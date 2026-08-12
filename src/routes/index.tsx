@@ -178,12 +178,12 @@ function Home() {
             </div>
           </form>
 
-          <div className="mt-4 min-h-[4rem] border-t border-border pt-4">
+          <div className="mt-3 border-t border-border pt-3">
             {result && (
               <>
-                <p className="odds-figure text-6xl leading-none">{result.probability}%</p>
+                <p className="odds-figure text-5xl leading-none">{result.probability}%</p>
                 <p className="engraved mt-1">{result.verdict}</p>
-                <p className="body-note mt-2">
+                <p className="body-note mt-1">
                   {result.area} · {party} {party === 1 ? "person" : "people"} · {from}–{to}
                 </p>
                 <p className="body-note">{result.weatherLine} · {dayLabel}</p>
