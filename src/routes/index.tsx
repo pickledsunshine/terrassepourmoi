@@ -61,16 +61,16 @@ function Home() {
 
   return (
     <main className="min-h-screen w-full overflow-hidden bg-background">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1536px] grid-cols-1 items-center gap-8 px-6 py-6 md:grid-cols-[55fr_45fr] md:gap-10 md:px-12 lg:px-16">
+      <div className="mx-auto grid min-h-screen w-full max-w-[1536px] grid-cols-1 items-center gap-8 px-6 py-4 md:grid-cols-[50fr_50fr] md:gap-10 md:px-12 lg:px-16">
         {/* ————— left: title artwork + tool ————— */}
         <section className="order-2 w-full max-w-[28rem] md:order-1 md:self-center">
-          <h1 className="mb-6 -ml-1">
+          <h1 className="mb-4 -ml-1">
             <img
               src={titleArt.url}
               alt="Terrasse?"
               width={650}
               height={255}
-              className="w-full max-w-[18rem]"
+              className="w-full max-w-[15rem]"
             />
           </h1>
 
