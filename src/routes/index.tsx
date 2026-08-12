@@ -10,13 +10,26 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { estimateTerrasse, formatHour, parseHour } from "@/lib/terrasse/engine";
 import {
-  fromSuggestion,
-  resolveInput,
-  searchPlaces,
-  type PlaceSuggestion,
+  fromCoordinates,
+  isMapsUrl,
+  parseCoordinates,
   type SelectedLocation,
 } from "@/lib/terrasse/geocode";
+import {
+  autocompletePlaces,
+  getPlaceDetails,
+  resolveMapsLink,
+  searchPlaceText,
+  type GooglePlacePoint,
+  type GooglePlaceSuggestion,
+} from "@/lib/terrasse/places.functions";
 import type { ResolvedLocation, TerrasseResult } from "@/lib/terrasse/types";
+
+/** Google point → the app's normalized location shape. */
+function toSelected(point: GooglePlacePoint): SelectedLocation {
+  const base = fromCoordinates(point.latitude, point.longitude);
+  return { ...base, displayName: point.displayName };
+}
 
 /** Normalized location → the shape the engine consumes (lat/lng driven). */
 function toResolved(loc: SelectedLocation): ResolvedLocation {
