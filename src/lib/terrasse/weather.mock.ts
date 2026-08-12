@@ -33,7 +33,7 @@ export const mockWeather: WeatherProvider = {
       };
     });
 
-    const midday = hourly[14];
+    const midday = hourly[14]!;
     const summary = wetDay
       ? "showers passing through"
       : midday.cloudCover > 0.6
@@ -46,5 +46,5 @@ export const mockWeather: WeatherProvider = {
 
 export function weatherAt(forecast: WeatherForecast, hour: number): HourlyWeather {
   const h = Math.max(0, Math.min(23, Math.floor(hour)));
-  return forecast.hourly[h];
+  return forecast.hourly[h]!;
 }

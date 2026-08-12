@@ -64,7 +64,7 @@ export function resolveLocation(raw: string): ResolvedLocation {
 }
 
 function nearestAreaLabel(lat: number, lng: number): string {
-  let best = KNOWN_AREAS[0];
+  let best = KNOWN_AREAS[0]!;
   let bestD = Infinity;
   for (const a of KNOWN_AREAS) {
     const d = (a.lat - lat) ** 2 + (a.lng - lng) ** 2;
@@ -79,10 +79,10 @@ function nearestAreaLabel(lat: number, lng: number): string {
 function cleanLabel(input: string): string {
   if (/^https?:/i.test(input)) {
     const place = decodeURIComponent(input).match(/place\/([^/@?]+)/i);
-    if (place) return place[1].replace(/\+/g, " ");
+    if (place) return (place[1] ?? "").replace(/\+/g, " ");
     return "Dropped pin";
   }
-  return input.split(",")[0].slice(0, 40);
+  return (input.split(",")[0] ?? input).slice(0, 40);
 }
 
 function titleCase(s: string): string {

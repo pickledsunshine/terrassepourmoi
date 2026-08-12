@@ -30,7 +30,7 @@ export const mockPlaces: PlacesProvider = {
       const r2 = hash01(`${location.label}-${i}-b`);
       return {
         id: `${location.label}-${i}`,
-        name: NAMES[(i + Math.round(seed * 11)) % NAMES.length],
+        name: NAMES[(i + Math.round(seed * 11)) % NAMES.length]!,
         terrace: r > 0.22,
         terraceSeats: 8 + Math.round(r2 * 40),
         shelter: 0.15 + r2 * 0.7,
