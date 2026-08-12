@@ -196,13 +196,13 @@ function Home() {
         </section>
 
         {/* ————— right: the exact artwork ————— */}
-        <section className="order-1 lg:order-2 lg:self-center">
+        <section className="order-1 flex items-center justify-center md:order-2 md:self-center">
           <img
             src={cafeDuo.url}
             alt="Hand-drawn indigo ink sketch of two people at a small café table with wine glasses"
             width={716}
             height={780}
-            className="mx-auto w-full max-w-[44rem]"
+            className="h-auto w-full max-w-[22rem] max-h-[52vh] object-contain md:max-w-[24rem]"
           />
         </section>
       </div>
