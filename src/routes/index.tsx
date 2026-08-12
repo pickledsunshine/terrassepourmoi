@@ -150,7 +150,7 @@ function Home() {
               <p className="odds-figure text-6xl leading-none">{result.probability}%</p>
               <p className="engraved mt-1">{result.verdict}</p>
               <p className="body-note mt-2">
-                {result.area} · {result.party ?? party} {party === 1 ? "person" : "people"} · {from}–{to}
+                {result.area} · {party} {party === 1 ? "person" : "people"} · {from}–{to}
               </p>
               <p className="body-note">
                 {result.weatherLine} · {dayLabel}
