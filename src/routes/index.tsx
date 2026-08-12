@@ -103,17 +103,17 @@ function Hero() {
 function Invitation() {
   const items = [
     {
-      icon: <SunSprig className="h-12 w-12" />,
+      icon: <SunSprig className="h-16 w-16" />,
       title: "The sky",
       note: "Temperature, wind and the chance of rain at the hour you intend to sit down.",
     },
     {
-      icon: <Awning className="h-12 w-12" />,
+      icon: <Awning className="h-16 w-16" />,
       title: "The chairs",
       note: "How many terrace seats a quartier actually holds, and how many are covered.",
     },
     {
-      icon: <OliveBranch className="h-12 w-14" />,
+      icon: <OliveBranch className="h-16 w-20" />,
       title: "The crowd",
       note: "Apéro pressure, weekends, and the way a warm evening empties every table.",
     },
@@ -195,12 +195,18 @@ function OddsPreview() {
           <hr className="inked-rule mx-auto mt-6 w-24" />
 
           <div className="mt-6 flex items-end justify-center gap-2">
-            {[52, 61, 74, 68, 47].map((v, i) => (
-              <div key={i} className="flex w-9 flex-col items-center gap-2">
-                <div className="flex h-24 w-px items-end bg-border">
-                  <div className="w-px bg-foreground" style={{ height: `${v}%` }} />
+            {[
+              [17, 52],
+              [18, 61],
+              [19, 74],
+              [20, 68],
+              [21, 47],
+            ].map(([hour, v]) => (
+              <div key={hour} className="flex w-10 flex-col items-center gap-2">
+                <div className="flex h-24 w-1.5 items-end rounded-full bg-secondary">
+                  <div className="w-1.5 rounded-full bg-foreground" style={{ height: `${v}%` }} />
                 </div>
-                <span className="engraved-soft">{19 + i - 2}h</span>
+                <span className="engraved-soft">{hour}h</span>
               </div>
             ))}
           </div>
@@ -258,7 +264,7 @@ function Addresses() {
       <div className="mt-12 grid gap-8 sm:grid-cols-3">
         {places.map((p) => (
           <article key={p.name} className="paper-card text-left">
-            <Awning className="h-10 w-10 text-foreground" />
+            <Awning className="h-12 w-12 text-foreground" />
             <h3 className="script-md mt-4">{p.name}</h3>
             <p className="engraved-soft mt-2">{p.area}</p>
             <hr className="inked-rule mt-5 w-full" />
