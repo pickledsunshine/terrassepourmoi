@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronDown, Clock } from "lucide-react";
+import { CalendarIcon, ChevronDown, Clock, MapPin } from "lucide-react";
 import cafeDuo from "@/assets/cafe-duo.png.asset.json";
 import titleArt from "@/assets/terrasse-title.png.asset.json";
 import checkArt from "@/assets/check-button.png.asset.json";
@@ -9,8 +9,24 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { estimateTerrasse, formatHour, parseHour } from "@/lib/terrasse/engine";
-import { resolveLocation } from "@/lib/terrasse/location";
-import type { TerrasseResult } from "@/lib/terrasse/types";
+import {
+  fromSuggestion,
+  resolveInput,
+  searchPlaces,
+  type PlaceSuggestion,
+  type SelectedLocation,
+} from "@/lib/terrasse/geocode";
+import type { ResolvedLocation, TerrasseResult } from "@/lib/terrasse/types";
+
+/** Normalized location → the shape the engine consumes (lat/lng driven). */
+function toResolved(loc: SelectedLocation): ResolvedLocation {
+  return {
+    label: loc.displayName,
+    lat: loc.latitude,
+    lng: loc.longitude,
+    source: "address",
+  };
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,28 +51,62 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const [place, setPlace] = useState("");
+  const [selected, setSelected] = useState<SelectedLocation | null>(null);
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [openList, setOpenList] = useState(false);
   const [date, setDate] = useState<Date>(() => new Date());
   const [from, setFrom] = useState("18:30");
   const [to, setTo] = useState("20:00");
   const [party, setParty] = useState(2);
   const [result, setResult] = useState<(TerrasseResult & { area: string }) | null>(null);
   const [pending, setPending] = useState(false);
+  const placeBox = useRef<HTMLDivElement>(null);
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (placeBox.current && !placeBox.current.contains(e.target as Node)) setOpenList(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  function onPlaceChange(value: string) {
+    setPlace(value);
+    setSelected(null);
+    const next = searchPlaces(value);
+    setSuggestions(next);
+    setOpenList(next.length > 0);
+  }
+
+  function pickSuggestion(s: PlaceSuggestion) {
+    const loc = fromSuggestion(s);
+    setSelected(loc);
+    setPlace(loc.displayName);
+    setOpenList(false);
+    setSuggestions([]);
+  }
 
   async function onCheck(e: React.FormEvent) {
     e.preventDefault();
     setPending(true);
+    setOpenList(false);
     try {
-      const location = resolveLocation(place);
+      const loc = selected ?? (await resolveInput(place));
+      if (!loc) {
+        setResult(null);
+        return;
+      }
+      setSelected(loc);
       const res = await estimateTerrasse({
-        location,
+        location: toResolved(loc),
         date,
         from: parseHour(from),
         to: parseHour(to),
         party,
       });
-      setResult({ ...res, area: location.label });
+      setResult({ ...res, area: loc.displayName });
     } catch (err) {
       console.error(err);
     } finally {
@@ -80,17 +130,51 @@ function Home() {
           </h1>
 
           <form className="space-y-4" onSubmit={onCheck}>
-            <div>
+            <div className="relative" ref={placeBox}>
               <label className="field-caption" htmlFor="place">
                 Where?
               </label>
               <input
                 id="place"
                 value={place}
-                onChange={(e) => setPlace(e.target.value)}
+                onChange={(e) => onPlaceChange(e.target.value)}
+                onFocus={() => setOpenList(suggestions.length > 0)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setOpenList(false);
+                  if (e.key === "Enter" && openList && suggestions[0]) {
+                    e.preventDefault();
+                    pickSuggestion(suggestions[0]);
+                  }
+                }}
+                autoComplete="off"
+                role="combobox"
+                aria-expanded={openList}
+                aria-autocomplete="list"
                 placeholder="Maps link, address, neighbourhood or coordinates"
                 className="field-line mt-1 w-full"
               />
+              {openList && suggestions.length > 0 && (
+                <ul
+                  role="listbox"
+                  className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-border bg-background shadow-sm"
+                >
+                  {suggestions.map((s) => (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected="false"
+                        onClick={() => pickSuggestion(s)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+                      >
+                        <MapPin className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        <span>{s.primary}</span>
+                        <span className="text-muted-foreground">{s.secondary}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div>
