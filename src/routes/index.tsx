@@ -46,15 +46,6 @@ function toSelected(point: GooglePlacePoint): SelectedLocation {
   return { ...base, displayName: point.displayName };
 }
 
-/** Normalized location → the shape the engine consumes (lat/lng driven). */
-function toResolved(loc: SelectedLocation): ResolvedLocation {
-  return {
-    label: loc.displayName,
-    lat: loc.latitude,
-    lng: loc.longitude,
-    source: "address",
-  };
-}
 
 export const Route = createFileRoute("/")({
   head: () => ({
