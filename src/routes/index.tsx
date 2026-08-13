@@ -97,6 +97,12 @@ function Home() {
   const refreshSeq = useRef(0);
   // Single-flight guard for the Now action, shared across renders.
   const nowRefresher = useRef(new NowRefresher());
+  // Ticks the relative freshness label without touching the data.
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
