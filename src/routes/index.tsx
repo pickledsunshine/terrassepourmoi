@@ -23,17 +23,33 @@ import {
   type GooglePlacePoint,
   type GooglePlaceSuggestion,
 } from "@/lib/terrasse/places.functions";
-import { fetchForecast } from "@/lib/terrasse/weather.functions";
-import { staticWeatherProvider, toForecast } from "@/lib/terrasse/weather.openmeteo";
+import { fetchForecast, type WeatherErrorKind } from "@/lib/terrasse/weather.functions";
+import {
+  knownHoursInWindow,
+  staticWeatherProvider,
+  toForecast,
+} from "@/lib/terrasse/weather.openmeteo";
+import {
+  forecastRange,
+  fromIsoDay,
+  isoDay,
+  isWithinForecastRange,
+  zonedToday,
+} from "@/lib/terrasse/weather.range";
 import { mockPlaces } from "@/lib/terrasse/places.mock";
 import { googlePlacesProvider, summarise as summariseVenues } from "@/lib/terrasse/places.google";
 import { nearbyVenues } from "@/lib/terrasse/venues.functions";
 import type { ResolvedLocation, TerrasseResult, WeatherForecast } from "@/lib/terrasse/types";
 
-/** Local calendar day (not UTC) for the Open-Meteo request. */
-function isoDay(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+/** One line of copy per failure mode, so the cause is never guessed at. */
+const WEATHER_MESSAGE: Record<WeatherErrorKind | "incomplete", string> = {
+  "out-of-range": "No forecast that far out — pick a date inside the highlighted range.",
+  network: "Could not reach the weather service — check your connection and try again.",
+  upstream: "The weather service is having trouble right now — try again in a moment.",
+  malformed: "The weather service sent something we could not read — try again in a moment.",
+  incomplete: "The forecast has gaps for those hours — try a different time window.",
+};
+
 
 /** Google point → the app's normalized location shape. */
 function toSelected(point: GooglePlacePoint): SelectedLocation {
