@@ -227,6 +227,8 @@ function Home() {
 
   async function onCheck(e: React.FormEvent) {
     e.preventDefault();
+    // A check already running: ignore the extra submit rather than racing it.
+    if (pending) return;
     setPending(true);
     setOpenList(false);
     try {
@@ -236,70 +238,15 @@ function Home() {
         return;
       }
       setSelected(loc);
-
-      // Real weather for the chosen point and day. Repeated checks with the
-      // same location and day reuse the forecast already in state.
-      let live = forecast;
-      if (!live || loc !== selected) {
-        live = await loadForecast(loc, date);
-        if (!live) {
-          setResult(null);
-          return;
-        }
-      }
-
-      const fromH = parseHour(from);
-      const toH = parseHour(to);
-
-      // Refuse to score a window the forecast has no real hours for.
-      if (knownHoursInWindow(live, fromH, toH) === 0) {
-        setWeatherState("error");
-        setWeatherError("incomplete");
-        setResult(null);
-        return;
-      }
-
-      // Real nearby venues from Google Places; mock only as an explicit fallback.
-      let places = mockPlaces;
-      let signals;
-      try {
-        const found = await nearbyVenues({
-          data: { latitude: loc.latitude, longitude: loc.longitude, radiusM: loc.radiusM ?? 500 },
-        });
-        places = googlePlacesProvider(found);
-        signals = summariseVenues(found, date.getDay(), fromH, toH, "google");
-      } catch (err) {
-        console.error("Google nearby search failed — falling back to mock venues", err);
-        signals = { source: "mock-fallback" as const };
-      }
-      // No provider gives live table availability; only suitability is modelled.
-      // Inspection only: never rendered in the production UI.
-      console.debug("[terrasse] venue signals", signals);
-
-      const res = await estimateTerrasse(
-        {
-          location: toResolved(loc),
-          date,
-          from: fromH,
-          to: toH,
-          party,
-        },
-        { places, weather: staticWeatherProvider(live) },
-      );
-
-      setResult({ ...res, area: loc.displayName });
+      // Single refresh path; the cache decides whether anything is refetched.
+      await runRefresh(loc, date, "full");
     } catch (err) {
       console.error(err);
-      if (err instanceof IncompleteWeatherError) {
-        setWeatherState("error");
-        setWeatherError("incomplete");
-        setResult(null);
-      }
-
     } finally {
       setPending(false);
     }
   }
+
 
   return (
     <main className="min-h-screen w-full overflow-hidden bg-background">
