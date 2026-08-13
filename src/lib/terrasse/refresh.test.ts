@@ -59,19 +59,18 @@ function venue(id: string): GoogleVenue {
 }
 
 function deps(overrides: Partial<RefreshDeps> = {}) {
-  const fetchForecast = vi.fn(async (): Promise<ForecastResult> => ({
-    ok: true,
-    forecast: rawForecast(),
-  }));
-  const nearbyVenues = vi.fn(async () => [venue("a"), venue("b"), venue("c")]);
-  return {
-    fetchForecast,
-    nearbyVenues,
+  const base = {
+    fetchForecast: vi.fn(async (): Promise<ForecastResult> => ({
+      ok: true,
+      forecast: rawForecast(),
+    })),
+    nearbyVenues: vi.fn(async () => [venue("a"), venue("b"), venue("c")]),
     cache: new ForecastCache(),
-    timeZone: "Europe/Paris",
-    ...overrides,
-  } satisfies RefreshDeps & { fetchForecast: typeof fetchForecast; nearbyVenues: typeof nearbyVenues };
+    timeZone: "Europe/Paris" as string | undefined,
+  };
+  return { ...base, ...overrides } as typeof base & RefreshDeps;
 }
+
 
 const input = (extra: Partial<Parameters<typeof refreshTerrasse>[0]> = {}) => ({
   location: LOCATION,
