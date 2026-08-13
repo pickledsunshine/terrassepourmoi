@@ -80,6 +80,9 @@ function Home() {
   const [party, setParty] = useState(2);
   const [result, setResult] = useState<(TerrasseResult & { area: string }) | null>(null);
   const [pending, setPending] = useState(false);
+  const [nowPending, setNowPending] = useState(false);
+  // Provider timestamp of the forecast on screen; drives the freshness line.
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   // The forecast itself lives in the refresh cache, not in component state.
   const [weatherState, setWeatherState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [weatherError, setWeatherError] = useState<WeatherErrorKind | "incomplete" | null>(null);
@@ -92,6 +95,8 @@ function Home() {
   const lookupSeq = useRef(0);
   // Monotonic refresh id: only the newest refresh may write to state.
   const refreshSeq = useRef(0);
+  // Single-flight guard for the Now action, shared across renders.
+  const nowRefresher = useRef(new NowRefresher());
 
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
