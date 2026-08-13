@@ -52,16 +52,25 @@ export type HourlyWeather = {
   cloudCover: number; // 0..1
   windKph: number;
   /** Optional richer fields supplied by the real forecast provider. */
-  apparentTemperatureC?: number | undefined;
-  rainMm?: number | undefined;
-  windGustKph?: number | undefined;
-  weatherCode?: number | undefined;
+  apparentTemperatureC?: number | null | undefined;
+  rainMm?: number | null | undefined;
+  windGustKph?: number | null | undefined;
+  weatherCode?: number | null | undefined;
 };
 
 export type WeatherForecast = {
+  /**
+   * Only hours whose core values (temperature, rain, cloud, wind) are known.
+   * Unknown hours are omitted rather than filled with invented defaults.
+   */
   hourly: HourlyWeather[];
   summary: string;
+  /** Hours the provider left null or did not return at all. */
+  missingHours?: number[] | undefined;
+  /** IANA timezone the hours are expressed in, when the provider states one. */
+  timeZone?: string | undefined;
 };
+
 
 export type TerrasseQuery = {
   location: ResolvedLocation;
