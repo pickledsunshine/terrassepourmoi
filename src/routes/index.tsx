@@ -8,7 +8,12 @@ import checkArt from "@/assets/check-button.png.asset.json";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { estimateTerrasse, formatHour, parseHour } from "@/lib/terrasse/engine";
+import {
+  estimateTerrasse,
+  formatHour,
+  IncompleteWeatherError,
+  parseHour,
+} from "@/lib/terrasse/engine";
 import {
   fromCoordinates,
   isMapsUrl,
@@ -23,17 +28,33 @@ import {
   type GooglePlacePoint,
   type GooglePlaceSuggestion,
 } from "@/lib/terrasse/places.functions";
-import { fetchForecast } from "@/lib/terrasse/weather.functions";
-import { staticWeatherProvider, toForecast } from "@/lib/terrasse/weather.openmeteo";
+import { fetchForecast, type WeatherErrorKind } from "@/lib/terrasse/weather.functions";
+import {
+  knownHoursInWindow,
+  staticWeatherProvider,
+  toForecast,
+} from "@/lib/terrasse/weather.openmeteo";
+import {
+  forecastRange,
+  fromIsoDay,
+  isoDay,
+  isWithinForecastRange,
+  zonedToday,
+} from "@/lib/terrasse/weather.range";
 import { mockPlaces } from "@/lib/terrasse/places.mock";
 import { googlePlacesProvider, summarise as summariseVenues } from "@/lib/terrasse/places.google";
 import { nearbyVenues } from "@/lib/terrasse/venues.functions";
 import type { ResolvedLocation, TerrasseResult, WeatherForecast } from "@/lib/terrasse/types";
 
-/** Local calendar day (not UTC) for the Open-Meteo request. */
-function isoDay(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+/** One line of copy per failure mode, so the cause is never guessed at. */
+const WEATHER_MESSAGE: Record<WeatherErrorKind | "incomplete", string> = {
+  "out-of-range": "No forecast that far out — pick a date inside the highlighted range.",
+  network: "Could not reach the weather service — check your connection and try again.",
+  upstream: "The weather service is having trouble right now — try again in a moment.",
+  malformed: "The weather service sent something we could not read — try again in a moment.",
+  incomplete: "The forecast has gaps for those hours — try a different time window.",
+};
+
 
 /** Google point → the app's normalized location shape. */
 function toSelected(point: GooglePlacePoint): SelectedLocation {
@@ -85,39 +106,90 @@ function Home() {
   const [pending, setPending] = useState(false);
   const [forecast, setForecast] = useState<WeatherForecast | null>(null);
   const [weatherState, setWeatherState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [weatherError, setWeatherError] = useState<WeatherErrorKind | "incomplete" | null>(null);
+  // Venue timezone, learned from the forecast; anchors "today" and the range.
+  const [timeZone, setTimeZone] = useState<string | undefined>(undefined);
+  // Authoritative window, replaced by the provider's own if it disagrees.
+  const [range, setRange] = useState(() => forecastRange(zonedToday()));
   const placeBox = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lookupSeq = useRef(0);
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
 
-  // Real forecast: refetched whenever location, date or time window changes.
+  // Re-anchor the selectable range on the venue's own calendar day.
+  useEffect(() => {
+    setRange(forecastRange(zonedToday(timeZone)));
+  }, [timeZone]);
+
+  /**
+   * One forecast fetch. The time window is deliberately not an input: the
+   * request covers the whole day, so changing from/to needs no refetch.
+   */
+  async function loadForecast(
+    loc: { latitude: number; longitude: number },
+    day: Date,
+  ): Promise<WeatherForecast | null> {
+    setWeatherState("loading");
+    setWeatherError(null);
+    if (!isWithinForecastRange(day, zonedToday(timeZone))) {
+      setForecast(null);
+      setWeatherState("error");
+      setWeatherError("out-of-range");
+      return null;
+    }
+    let res;
+    try {
+      res = await fetchForecast({
+        data: { latitude: loc.latitude, longitude: loc.longitude, date: isoDay(day) },
+      });
+    } catch (err) {
+      console.error(err);
+      setForecast(null);
+      setWeatherState("error");
+      setWeatherError("network");
+      return null;
+    }
+    if (!res.ok) {
+      console.error(`[terrasse] weather ${res.kind}: ${res.message}`);
+      if (res.kind === "out-of-range" && res.range) {
+        setRange({ min: fromIsoDay(res.range.min), max: fromIsoDay(res.range.max) });
+      }
+      setForecast(null);
+      setWeatherState("error");
+      setWeatherError(res.kind);
+      return null;
+    }
+    const next = toForecast(res.forecast);
+    setForecast(next);
+    setTimeZone(res.forecast.timezone);
+    setWeatherState("ready");
+    return next;
+  }
+
+  // Real forecast: refetched when the location or the day changes.
+  // The time window is not a dependency — one request covers the whole day.
   useEffect(() => {
     if (!selected) {
       setForecast(null);
       setWeatherState("idle");
+      setWeatherError(null);
       return;
     }
     let cancelled = false;
-    setWeatherState("loading");
-    fetchForecast({
-      data: { latitude: selected.latitude, longitude: selected.longitude, date: isoDay(date) },
-    })
-      .then((raw) => {
-        if (cancelled) return;
-        setForecast(toForecast(raw));
-        setWeatherState("ready");
-      })
-      .catch((err) => {
-        console.error(err);
-        if (cancelled) return;
-        setForecast(null);
-        setWeatherState("error");
-      });
+    void (async () => {
+      const loc = selected;
+      const day = date;
+      const next = await loadForecast(loc, day);
+      // A newer selection may have landed while this was in flight.
+      if (cancelled && next) setForecast(null);
+    })();
     return () => {
       cancelled = true;
     };
-  }, [selected, date, from, to]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, date]);
+
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -189,29 +261,29 @@ function Home() {
       }
       setSelected(loc);
 
-      // Real weather for the chosen point, day and window.
+      // Real weather for the chosen point and day. Repeated checks with the
+      // same location and day reuse the forecast already in state.
       let live = forecast;
       if (!live || loc !== selected) {
-        setWeatherState("loading");
-        try {
-          const raw = await fetchForecast({
-            data: { latitude: loc.latitude, longitude: loc.longitude, date: isoDay(date) },
-          });
-          live = toForecast(raw);
-          setForecast(live);
-          setWeatherState("ready");
-        } catch (err) {
-          console.error(err);
-          setForecast(null);
-          setWeatherState("error");
+        live = await loadForecast(loc, date);
+        if (!live) {
           setResult(null);
           return;
         }
       }
 
-      // Real nearby venues from Google Places; mock only as an explicit fallback.
       const fromH = parseHour(from);
       const toH = parseHour(to);
+
+      // Refuse to score a window the forecast has no real hours for.
+      if (knownHoursInWindow(live, fromH, toH) === 0) {
+        setWeatherState("error");
+        setWeatherError("incomplete");
+        setResult(null);
+        return;
+      }
+
+      // Real nearby venues from Google Places; mock only as an explicit fallback.
       let places = mockPlaces;
       let signals;
       try {
@@ -238,9 +310,16 @@ function Home() {
         },
         { places, weather: staticWeatherProvider(live) },
       );
+
       setResult({ ...res, area: loc.displayName });
     } catch (err) {
       console.error(err);
+      if (err instanceof IncompleteWeatherError) {
+        setWeatherState("error");
+        setWeatherError("incomplete");
+        setResult(null);
+      }
+
     } finally {
       setPending(false);
     }
@@ -325,9 +404,15 @@ function Home() {
                       mode="single"
                       selected={date}
                       onSelect={(d) => d && setDate(d)}
+                      defaultMonth={date}
+                      // The provider only serves this window; anything else is unfetchable.
+                      disabled={{ before: range.min, after: range.max }}
+                      startMonth={range.min}
+                      endMonth={range.max}
                       initialFocus
                       className={cn("p-3 pointer-events-auto")}
                     />
+
                   </PopoverContent>
                 </Popover>
 
@@ -404,8 +489,11 @@ function Home() {
           <div className="mt-3 border-t border-border pt-3">
             {pending && !result && <p className="body-note">Checking the sky…</p>}
             {weatherState === "error" && !pending && (
-              <p className="body-note">Weather unavailable right now — try again in a moment.</p>
+              <p className="body-note">
+                {WEATHER_MESSAGE[weatherError ?? "upstream"]}
+              </p>
             )}
+
             {result && (
               <>
                 <p className="odds-figure text-5xl leading-none">{result.probability}%</p>

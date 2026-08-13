@@ -44,7 +44,12 @@ export const mockWeather: WeatherProvider = {
   },
 };
 
-export function weatherAt(forecast: WeatherForecast, hour: number): HourlyWeather {
+/**
+ * Values for a given hour, or `undefined` when the provider has no data for it.
+ * Looks the hour up by its `hour` field: forecasts may omit unknown hours.
+ */
+export function weatherAt(forecast: WeatherForecast, hour: number): HourlyWeather | undefined {
   const h = Math.max(0, Math.min(23, Math.floor(hour)));
-  return forecast.hourly[h]!;
+  return forecast.hourly.find((x) => x.hour === h);
 }
+

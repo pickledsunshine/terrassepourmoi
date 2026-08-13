@@ -3,10 +3,11 @@ import type { OpenMeteoForecast } from "./weather.functions";
 
 /** Short, plain-language sky summary, keeping the existing result wording. */
 export function summarise(hours: HourlyWeather[], codes: number[]): string {
+  if (hours.length === 0) return "weather unknown";
   const wet = hours.some((h, i) => h.precipitationMm > 0.1 || (codes[i] ?? 0) >= 51);
   const stormy = codes.some((c) => c >= 95);
   const snow = codes.some((c) => c >= 71 && c <= 77);
-  const avgCloud = hours.length ? hours.reduce((a, h) => a + h.cloudCover, 0) / hours.length : 0;
+  const avgCloud = hours.reduce((a, h) => a + h.cloudCover, 0) / hours.length;
   const fog = codes.some((c) => c === 45 || c === 48);
 
   if (stormy) return "thunder about";
@@ -18,32 +19,64 @@ export function summarise(hours: HourlyWeather[], codes: number[]): string {
   return "clear and settled";
 }
 
-/** Adapts a raw Open-Meteo payload into the engine's weather provider shape. */
+/**
+ * Adapts a raw Open-Meteo payload into the engine's weather provider shape.
+ *
+ * Hours whose core values are unknown are dropped and listed in `missingHours`
+ * instead of being coerced to zero or to invented averages.
+ */
 export function toForecast(raw: OpenMeteoForecast): WeatherForecast {
-  const byHour = new Map<number, (typeof raw.hourly)[number]>();
-  for (const h of raw.hourly) byHour.set(h.hour, h);
+  const hourly: HourlyWeather[] = [];
+  const missingHours: number[] = [];
+  const seen = new Set<number>();
 
-  const hourly: HourlyWeather[] = Array.from({ length: 24 }, (_, hour) => {
-    const h = byHour.get(hour);
-    return {
-      hour,
-      temperatureC: h?.temperatureC ?? 15,
-      apparentTemperatureC: h?.apparentTemperatureC,
-      precipitationProbability: h?.precipitationProbability ?? 0,
-      precipitationMm: h?.precipitationMm ?? 0,
-      rainMm: h?.rainMm,
-      cloudCover: h?.cloudCover ?? 0.5,
-      windKph: h?.windKph ?? 8,
-      windGustKph: h?.windGustKph,
-      weatherCode: h?.weatherCode,
-    };
-  });
+  for (const h of raw.hourly) {
+    if (seen.has(h.hour)) continue;
+    seen.add(h.hour);
+    const core =
+      h.temperatureC !== null &&
+      h.precipitationProbability !== null &&
+      h.precipitationMm !== null &&
+      h.cloudCover !== null &&
+      h.windKph !== null;
+    if (!core) {
+      missingHours.push(h.hour);
+      continue;
+    }
+    hourly.push({
+      hour: h.hour,
+      temperatureC: h.temperatureC as number,
+      precipitationProbability: h.precipitationProbability as number,
+      precipitationMm: h.precipitationMm as number,
+      cloudCover: h.cloudCover as number,
+      windKph: h.windKph as number,
+      apparentTemperatureC: h.apparentTemperatureC,
+      rainMm: h.rainMm,
+      windGustKph: h.windGustKph,
+      weatherCode: h.weatherCode,
+    });
+  }
 
-  const present = raw.hourly.map((h) => h.hour);
-  const window = hourly.filter((h) => present.includes(h.hour));
-  const codes = window.map((h) => h.weatherCode ?? 0);
+  // Any hour of the day the provider never mentioned is unknown too.
+  for (let hour = 0; hour < 24; hour++) if (!seen.has(hour)) missingHours.push(hour);
 
-  return { hourly, summary: summarise(window.length ? window : hourly, codes) };
+  hourly.sort((a, b) => a.hour - b.hour);
+  missingHours.sort((a, b) => a - b);
+
+  const codes = hourly.map((h) => h.weatherCode ?? 0);
+  return {
+    hourly,
+    summary: summarise(hourly, codes),
+    missingHours,
+    timeZone: raw.timezone,
+  };
+}
+
+/** Hours inside [from, to] for which real values exist. */
+export function knownHoursInWindow(forecast: WeatherForecast, from: number, to: number): number {
+  const lo = Math.floor(from);
+  const hi = Math.floor(to);
+  return forecast.hourly.filter((h) => h.hour >= lo && h.hour <= hi).length;
 }
 
 /** A provider backed by an already-fetched forecast (the UI does the fetching). */
