@@ -73,11 +73,11 @@ const input = () => ({
 
 describe("Now action", () => {
   it("calls refreshTerrasse with force: true", async () => {
-    const spy = vi.fn(async (): Promise<RefreshOutcome> => ({ status: "incomplete" }));
+    const spy = vi.fn<RefreshFn>(async () => ({ status: "incomplete" }));
     const now = new NowRefresher(spy);
     await now.run(input(), deps());
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy.mock.calls[0]![0]).toMatchObject({ force: true });
+    expect(spy.mock.calls[0]?.[0]).toMatchObject({ force: true });
   });
 
   it("bypasses a fresh cached forecast", async () => {
