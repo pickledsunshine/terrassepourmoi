@@ -89,6 +89,9 @@ function Home() {
   const placeBox = useRef<HTMLDivElement>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lookupSeq = useRef(0);
+  // Monotonic refresh id: only the newest refresh may write to state.
+  const refreshSeq = useRef(0);
+
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
 
