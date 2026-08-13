@@ -256,29 +256,29 @@ function Home() {
       }
       setSelected(loc);
 
-      // Real weather for the chosen point, day and window.
+      // Real weather for the chosen point and day. Repeated checks with the
+      // same location and day reuse the forecast already in state.
       let live = forecast;
       if (!live || loc !== selected) {
-        setWeatherState("loading");
-        try {
-          const raw = await fetchForecast({
-            data: { latitude: loc.latitude, longitude: loc.longitude, date: isoDay(date) },
-          });
-          live = toForecast(raw);
-          setForecast(live);
-          setWeatherState("ready");
-        } catch (err) {
-          console.error(err);
-          setForecast(null);
-          setWeatherState("error");
+        live = await loadForecast(loc, date);
+        if (!live) {
           setResult(null);
           return;
         }
       }
 
-      // Real nearby venues from Google Places; mock only as an explicit fallback.
       const fromH = parseHour(from);
       const toH = parseHour(to);
+
+      // Refuse to score a window the forecast has no real hours for.
+      if (knownHoursInWindow(live, fromH, toH) === 0) {
+        setWeatherState("error");
+        setWeatherError("incomplete");
+        setResult(null);
+        return;
+      }
+
+      // Real nearby venues from Google Places; mock only as an explicit fallback.
       let places = mockPlaces;
       let signals;
       try {
@@ -305,6 +305,7 @@ function Home() {
         },
         { places, weather: staticWeatherProvider(live) },
       );
+
       setResult({ ...res, area: loc.displayName });
     } catch (err) {
       console.error(err);
