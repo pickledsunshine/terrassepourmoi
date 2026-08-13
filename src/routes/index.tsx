@@ -128,7 +128,19 @@ function Home() {
     );
     // A newer refresh landed while this one was in flight: discard it.
     if (seq !== refreshSeq.current) return outcome;
+    applyOutcome(outcome, loc);
+    return outcome;
+  }
 
+  /**
+   * Reflects a refresh outcome in state. `preserveResult` keeps a previously
+   * valid result on screen when a refresh fails (used by Now).
+   */
+  function applyOutcome(
+    outcome: RefreshOutcome,
+    loc: SelectedLocation,
+    preserveResult = false,
+  ) {
     if (outcome.status === "weather-error") {
       console.error(`[terrasse] weather ${outcome.kind}: ${outcome.message ?? ""}`);
       if (outcome.kind === "out-of-range" && outcome.range) {
@@ -136,24 +148,53 @@ function Home() {
       }
       setWeatherState("error");
       setWeatherError(outcome.kind);
-      setResult(null);
-      return outcome;
+      if (!preserveResult) setResult(null);
+      return;
     }
     if (outcome.status === "incomplete") {
       setWeatherState("error");
       setWeatherError("incomplete");
-      setResult(null);
-      return outcome;
+      if (!preserveResult) setResult(null);
+      return;
     }
 
     setTimeZone(outcome.timeZone);
     setWeatherState("ready");
+    // Freshness always comes from the provider timestamp, never the click.
+    setFetchedAt(outcome.fetchedAt);
     if (outcome.result) {
       // Inspection only: never rendered in the production UI.
       console.debug("[terrasse] venue signals", outcome.signals);
       setResult({ ...outcome.result, area: loc.displayName });
     }
-    return outcome;
+  }
+
+  /** Forced refresh: same pipeline, cache bypassed, single-flight. */
+  async function onNow() {
+    const loc = selected;
+    if (!loc || nowPending) return;
+    setNowPending(true);
+    const seq = ++refreshSeq.current;
+    try {
+      const outcome = await nowRefresher.current.run(
+        {
+          location: loc,
+          date,
+          from: parseHour(from),
+          to: parseHour(to),
+          party,
+          mode: result ? "full" : "weather",
+        },
+        { fetchForecast, nearbyVenues, timeZone },
+      );
+      if (outcome === BUSY) return;
+      if (seq !== refreshSeq.current) return;
+      applyOutcome(outcome, loc, true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setNowPending(false);
+    }
   }
 
   // Warm the forecast when the location or the day changes.
