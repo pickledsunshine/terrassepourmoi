@@ -155,11 +155,13 @@ export async function estimateTerrasse(
   const friction = partyFriction(party);
 
   // Sample the window every 15 minutes and keep the best slot.
+  // Hours with no weather data are skipped, never guessed at.
   let best = { p: 0, t: from, suitability: 0.5, demand: 1, occupancy: 0.5 };
   let sum = 0;
   let samples = 0;
   for (let t = from; t <= to; t += 0.25) {
     const w = weatherAt(forecast, t);
+    if (!w) continue;
     const attractiveness = weatherSuitability(w);
     const sittable = usability(w, avgShelter);
 
@@ -176,12 +178,19 @@ export async function estimateTerrasse(
     if (p > best.p) best = { p, t, suitability: attractiveness, demand, occupancy };
   }
 
+  if (samples === 0) {
+    throw new IncompleteWeatherError(
+      "No weather data is available for the selected hours",
+    );
+  }
+
   // Most of the window matters, not only its quietest minute.
   const mean = samples ? sum / samples : 0;
   const blended = mean * 0.7 + best.p * 0.3;
   const probability = Math.round(Math.max(2, Math.min(95, blended * 100)));
 
-  const w = weatherAt(forecast, best.t);
+  const w = weatherAt(forecast, best.t)!;
+
   const factors: Factor[] = [
     {
       label: `${supply.outdoorConfirmed} confirmed terraces open nearby`,
