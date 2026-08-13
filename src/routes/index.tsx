@@ -309,6 +309,12 @@ function Home() {
       setResult({ ...res, area: loc.displayName });
     } catch (err) {
       console.error(err);
+      if (err instanceof IncompleteWeatherError) {
+        setWeatherState("error");
+        setWeatherError("incomplete");
+        setResult(null);
+      }
+
     } finally {
       setPending(false);
     }
