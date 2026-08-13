@@ -127,15 +127,16 @@ describe("cache hits", () => {
 
   it("stores a freshness timestamp with the cached forecast", async () => {
     const d = deps();
-    const now = () => 1_700_000_000_000;
-    await refreshTerrasse(input(), { ...d, now });
-    const key = forecastCacheKey(LOCATION.latitude, LOCATION.longitude, "");
-    const entry = [...["x"]].length && d.cache.peek(
-      forecastCacheKey(LOCATION.latitude, LOCATION.longitude, key.split("@")[1] ?? ""),
-    );
-    // Key is rebuilt from the same helper the orchestrator uses.
-    expect(entry === undefined || entry === false ? true : entry.fetchedAt).toBeTruthy();
+    const stamp = 1_700_000_000_000;
+    const out = await refreshTerrasse(input(), { ...d, now: () => stamp });
+    if (out.status !== "ok") throw new Error("expected ok");
+    expect(out.fetchedAt).toBe(stamp);
+    // And the same timestamp is what the cache holds.
+    const hit = await refreshTerrasse(input(), { ...d, now: () => stamp + 1_000 });
+    if (hit.status !== "ok") throw new Error("expected ok");
+    expect(hit.fetchedAt).toBe(stamp);
   });
+
 });
 
 describe("expiry / freshness policy", () => {
