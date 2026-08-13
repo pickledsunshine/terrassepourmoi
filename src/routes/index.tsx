@@ -8,12 +8,7 @@ import checkArt from "@/assets/check-button.png.asset.json";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import {
-  estimateTerrasse,
-  formatHour,
-  IncompleteWeatherError,
-  parseHour,
-} from "@/lib/terrasse/engine";
+import { formatHour, parseHour } from "@/lib/terrasse/engine";
 import {
   fromCoordinates,
   isMapsUrl,
@@ -29,22 +24,11 @@ import {
   type GooglePlaceSuggestion,
 } from "@/lib/terrasse/places.functions";
 import { fetchForecast, type WeatherErrorKind } from "@/lib/terrasse/weather.functions";
-import {
-  knownHoursInWindow,
-  staticWeatherProvider,
-  toForecast,
-} from "@/lib/terrasse/weather.openmeteo";
-import {
-  forecastRange,
-  fromIsoDay,
-  isoDay,
-  isWithinForecastRange,
-  zonedToday,
-} from "@/lib/terrasse/weather.range";
-import { mockPlaces } from "@/lib/terrasse/places.mock";
-import { googlePlacesProvider, summarise as summariseVenues } from "@/lib/terrasse/places.google";
+import { forecastRange, fromIsoDay, zonedToday } from "@/lib/terrasse/weather.range";
 import { nearbyVenues } from "@/lib/terrasse/venues.functions";
-import type { ResolvedLocation, TerrasseResult, WeatherForecast } from "@/lib/terrasse/types";
+import { refreshTerrasse, type RefreshOutcome } from "@/lib/terrasse/refresh";
+import type { TerrasseResult } from "@/lib/terrasse/types";
+
 
 /** One line of copy per failure mode, so the cause is never guessed at. */
 const WEATHER_MESSAGE: Record<WeatherErrorKind | "incomplete", string> = {
