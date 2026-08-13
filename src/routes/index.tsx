@@ -98,72 +98,73 @@ function Home() {
   }, [timeZone]);
 
   /**
-   * One forecast fetch. The time window is deliberately not an input: the
-   * request covers the whole day, so changing from/to needs no refetch.
+   * The one refresh trigger the UI owns today. Everything (cache lookup,
+   * request de-duplication, error mapping, scoring) happens inside
+   * refreshTerrasse; this only reflects the outcome in state.
    */
-  async function loadForecast(
-    loc: { latitude: number; longitude: number },
+  async function runRefresh(
+    loc: SelectedLocation,
     day: Date,
-  ): Promise<WeatherForecast | null> {
+    mode: "weather" | "full",
+    force = false,
+  ): Promise<RefreshOutcome> {
+    const seq = ++refreshSeq.current;
     setWeatherState("loading");
     setWeatherError(null);
-    if (!isWithinForecastRange(day, zonedToday(timeZone))) {
-      setForecast(null);
-      setWeatherState("error");
-      setWeatherError("out-of-range");
-      return null;
-    }
-    let res;
-    try {
-      res = await fetchForecast({
-        data: { latitude: loc.latitude, longitude: loc.longitude, date: isoDay(day) },
-      });
-    } catch (err) {
-      console.error(err);
-      setForecast(null);
-      setWeatherState("error");
-      setWeatherError("network");
-      return null;
-    }
-    if (!res.ok) {
-      console.error(`[terrasse] weather ${res.kind}: ${res.message}`);
-      if (res.kind === "out-of-range" && res.range) {
-        setRange({ min: fromIsoDay(res.range.min), max: fromIsoDay(res.range.max) });
+    const outcome = await refreshTerrasse(
+      {
+        location: loc,
+        date: day,
+        from: parseHour(from),
+        to: parseHour(to),
+        party,
+        mode,
+        force,
+      },
+      { fetchForecast, nearbyVenues, timeZone },
+    );
+    // A newer refresh landed while this one was in flight: discard it.
+    if (seq !== refreshSeq.current) return outcome;
+
+    if (outcome.status === "weather-error") {
+      console.error(`[terrasse] weather ${outcome.kind}: ${outcome.message ?? ""}`);
+      if (outcome.kind === "out-of-range" && outcome.range) {
+        setRange({ min: fromIsoDay(outcome.range.min), max: fromIsoDay(outcome.range.max) });
       }
-      setForecast(null);
       setWeatherState("error");
-      setWeatherError(res.kind);
-      return null;
+      setWeatherError(outcome.kind);
+      setResult(null);
+      return outcome;
     }
-    const next = toForecast(res.forecast);
-    setForecast(next);
-    setTimeZone(res.forecast.timezone);
+    if (outcome.status === "incomplete") {
+      setWeatherState("error");
+      setWeatherError("incomplete");
+      setResult(null);
+      return outcome;
+    }
+
+    setTimeZone(outcome.timeZone);
     setWeatherState("ready");
-    return next;
+    if (outcome.result) {
+      // Inspection only: never rendered in the production UI.
+      console.debug("[terrasse] venue signals", outcome.signals);
+      setResult({ ...outcome.result, area: loc.displayName });
+    }
+    return outcome;
   }
 
-  // Real forecast: refetched when the location or the day changes.
+  // Warm the forecast when the location or the day changes.
   // The time window is not a dependency — one request covers the whole day.
   useEffect(() => {
     if (!selected) {
-      setForecast(null);
       setWeatherState("idle");
       setWeatherError(null);
       return;
     }
-    let cancelled = false;
-    void (async () => {
-      const loc = selected;
-      const day = date;
-      const next = await loadForecast(loc, day);
-      // A newer selection may have landed while this was in flight.
-      if (cancelled && next) setForecast(null);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void runRefresh(selected, date, "weather");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, date]);
+
 
 
   useEffect(() => {
