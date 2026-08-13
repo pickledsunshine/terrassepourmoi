@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { BUSY, NowRefresher, formatFreshness } from "./now";
-import { ForecastCache, refreshTerrasse, type RefreshDeps, type RefreshOutcome } from "./refresh";
+import { BUSY, NowRefresher, formatFreshness, type RefreshFn } from "./now";
+import { ForecastCache, refreshTerrasse, type RefreshDeps } from "./refresh";
 import type { ForecastResult, OpenMeteoForecast } from "./weather.functions";
 import type { GoogleVenue } from "./venues.functions";
 
