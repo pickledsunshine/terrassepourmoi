@@ -404,9 +404,15 @@ function Home() {
                       mode="single"
                       selected={date}
                       onSelect={(d) => d && setDate(d)}
+                      defaultMonth={date}
+                      // The provider only serves this window; anything else is unfetchable.
+                      disabled={{ before: range.min, after: range.max }}
+                      startMonth={range.min}
+                      endMonth={range.max}
                       initialFocus
                       className={cn("p-3 pointer-events-auto")}
                     />
+
                   </PopoverContent>
                 </Popover>
 
@@ -483,8 +489,11 @@ function Home() {
           <div className="mt-3 border-t border-border pt-3">
             {pending && !result && <p className="body-note">Checking the sky…</p>}
             {weatherState === "error" && !pending && (
-              <p className="body-note">Weather unavailable right now — try again in a moment.</p>
+              <p className="body-note">
+                {WEATHER_MESSAGE[weatherError ?? "upstream"]}
+              </p>
             )}
+
             {result && (
               <>
                 <p className="odds-figure text-5xl leading-none">{result.probability}%</p>
