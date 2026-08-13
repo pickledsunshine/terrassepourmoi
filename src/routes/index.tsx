@@ -27,6 +27,7 @@ import { fetchForecast, type WeatherErrorKind } from "@/lib/terrasse/weather.fun
 import { forecastRange, fromIsoDay, zonedToday } from "@/lib/terrasse/weather.range";
 import { nearbyVenues } from "@/lib/terrasse/venues.functions";
 import { refreshTerrasse, type RefreshOutcome } from "@/lib/terrasse/refresh";
+import { BUSY, NowRefresher, formatFreshness } from "@/lib/terrasse/now";
 import type { TerrasseResult } from "@/lib/terrasse/types";
 
 
@@ -79,6 +80,9 @@ function Home() {
   const [party, setParty] = useState(2);
   const [result, setResult] = useState<(TerrasseResult & { area: string }) | null>(null);
   const [pending, setPending] = useState(false);
+  const [nowPending, setNowPending] = useState(false);
+  // Provider timestamp of the forecast on screen; drives the freshness line.
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   // The forecast itself lives in the refresh cache, not in component state.
   const [weatherState, setWeatherState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [weatherError, setWeatherError] = useState<WeatherErrorKind | "incomplete" | null>(null);
@@ -91,6 +95,14 @@ function Home() {
   const lookupSeq = useRef(0);
   // Monotonic refresh id: only the newest refresh may write to state.
   const refreshSeq = useRef(0);
+  // Single-flight guard for the Now action, shared across renders.
+  const nowRefresher = useRef(new NowRefresher());
+  // Ticks the relative freshness label without touching the data.
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
 
   const dayLabel = useMemo(() => format(date, "EEEE"), [date]);
@@ -128,7 +140,19 @@ function Home() {
     );
     // A newer refresh landed while this one was in flight: discard it.
     if (seq !== refreshSeq.current) return outcome;
+    applyOutcome(outcome, loc);
+    return outcome;
+  }
 
+  /**
+   * Reflects a refresh outcome in state. `preserveResult` keeps a previously
+   * valid result on screen when a refresh fails (used by Now).
+   */
+  function applyOutcome(
+    outcome: RefreshOutcome,
+    loc: SelectedLocation,
+    preserveResult = false,
+  ) {
     if (outcome.status === "weather-error") {
       console.error(`[terrasse] weather ${outcome.kind}: ${outcome.message ?? ""}`);
       if (outcome.kind === "out-of-range" && outcome.range) {
@@ -136,24 +160,53 @@ function Home() {
       }
       setWeatherState("error");
       setWeatherError(outcome.kind);
-      setResult(null);
-      return outcome;
+      if (!preserveResult) setResult(null);
+      return;
     }
     if (outcome.status === "incomplete") {
       setWeatherState("error");
       setWeatherError("incomplete");
-      setResult(null);
-      return outcome;
+      if (!preserveResult) setResult(null);
+      return;
     }
 
     setTimeZone(outcome.timeZone);
     setWeatherState("ready");
+    // Freshness always comes from the provider timestamp, never the click.
+    setFetchedAt(outcome.fetchedAt);
     if (outcome.result) {
       // Inspection only: never rendered in the production UI.
       console.debug("[terrasse] venue signals", outcome.signals);
       setResult({ ...outcome.result, area: loc.displayName });
     }
-    return outcome;
+  }
+
+  /** Forced refresh: same pipeline, cache bypassed, single-flight. */
+  async function onNow() {
+    const loc = selected;
+    if (!loc || nowPending) return;
+    setNowPending(true);
+    const seq = ++refreshSeq.current;
+    try {
+      const outcome = await nowRefresher.current.run(
+        {
+          location: loc,
+          date,
+          from: parseHour(from),
+          to: parseHour(to),
+          party,
+          mode: result ? "full" : "weather",
+        },
+        { fetchForecast, nearbyVenues, timeZone },
+      );
+      if (outcome === BUSY) return;
+      if (seq !== refreshSeq.current) return;
+      applyOutcome(outcome, loc, true);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setNowPending(false);
+    }
   }
 
   // Warm the forecast when the location or the day changes.
@@ -440,6 +493,23 @@ function Home() {
                   · conditions, not tables
                 </p>
               </>
+            )}
+
+            {selected && fetchedAt !== null && (
+              <p className="body-note mt-1 flex items-center gap-2">
+                <span className={cn(nowPending && "opacity-60")}>
+                  {nowPending ? "Refreshing…" : formatFreshness(fetchedAt, tick)}
+                </span>
+                <button
+                  type="button"
+                  onClick={onNow}
+                  disabled={nowPending}
+                  aria-label="Refresh with the latest weather"
+                  className="underline underline-offset-4 disabled:opacity-50"
+                >
+                  Now
+                </button>
+              </p>
             )}
           </div>
         </section>
