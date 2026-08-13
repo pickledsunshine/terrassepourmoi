@@ -31,6 +31,12 @@ import type {
 
 export type EngineDeps = { places: PlacesProvider; weather: WeatherProvider };
 
+/** Thrown when the forecast has no usable hour inside the selected window. */
+export class IncompleteWeatherError extends Error {
+  readonly kind = "incomplete-weather" as const;
+}
+
+
 const defaultDeps: EngineDeps = { places: mockPlaces, weather: mockWeather };
 
 /**
