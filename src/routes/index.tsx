@@ -79,7 +79,7 @@ function Home() {
   const [party, setParty] = useState(2);
   const [result, setResult] = useState<(TerrasseResult & { area: string }) | null>(null);
   const [pending, setPending] = useState(false);
-  const [forecast, setForecast] = useState<WeatherForecast | null>(null);
+  // The forecast itself lives in the refresh cache, not in component state.
   const [weatherState, setWeatherState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [weatherError, setWeatherError] = useState<WeatherErrorKind | "incomplete" | null>(null);
   // Venue timezone, learned from the forecast; anchors "today" and the range.
