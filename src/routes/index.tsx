@@ -488,6 +488,23 @@ function Home() {
                 </p>
               </>
             )}
+
+            {selected && fetchedAt !== null && (
+              <p className="body-note mt-1 flex items-center gap-2">
+                <span className={cn(nowPending && "opacity-60")}>
+                  {nowPending ? "Refreshing…" : formatFreshness(fetchedAt, tick)}
+                </span>
+                <button
+                  type="button"
+                  onClick={onNow}
+                  disabled={nowPending}
+                  aria-label="Refresh with the latest weather"
+                  className="underline underline-offset-4 disabled:opacity-50"
+                >
+                  Now
+                </button>
+              </p>
+            )}
           </div>
         </section>
 
