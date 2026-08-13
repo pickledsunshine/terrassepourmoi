@@ -8,7 +8,12 @@ import checkArt from "@/assets/check-button.png.asset.json";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { estimateTerrasse, formatHour, parseHour } from "@/lib/terrasse/engine";
+import {
+  estimateTerrasse,
+  formatHour,
+  IncompleteWeatherError,
+  parseHour,
+} from "@/lib/terrasse/engine";
 import {
   fromCoordinates,
   isMapsUrl,
